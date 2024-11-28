@@ -1,4 +1,4 @@
-# AutoAD -  Automated Preprocessing combined with Anomaly Detection
+# AutoAD -  Automated pre-processing pipeline for the detection of anomalies
 
 
 
@@ -52,7 +52,7 @@ from pyod.models.iforest import IForest
 pipeline_ad = AutoAD()
 
 
-pipeline_ad.fit(X=X_train, clf_ad=IForest(), pipeline_type="")
+pipeline_ad.fit(X=X_train, clf_ad=IForest())
 X_transformed = pipeline_ad.transform(X=X_test)
 X_transformed
 ````
