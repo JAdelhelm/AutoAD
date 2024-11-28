@@ -137,4 +137,4 @@ class AutoAD:
             if True is is_numeric_dtype(X[col]) and X[col].std() <= 0.5:
                 columns_with_no_variance.append(col)
 
-        return X.drop(columns_with_no_variance, axis=0)
+        return X.drop(columns_with_no_variance, axis=1)
