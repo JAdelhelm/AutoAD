@@ -1,0 +1,11 @@
+ID,Name,Rank,Age,Salary,Hire Date,Is Manager,Department,Years at Company
+1,Alice,A,25,50000.00,2020-01-15,False,HR,3
+2,Bob,B,30,60000.50,2019-05-22,True,Engineering,5
+3,Charlie,C,35,75000.75,2018-08-30,False,Finance,6
+4,Diana,D,,8000000.00,2021-04-12,False,Marketing,2
+5,Eve,A,28,54000.00,2021-09-01,True,HR,3
+6,Frank,B,45,82000.00,2017-03-15,False,Engineering,7
+7,Grace,C,,65000.25,2019-11-23,False,Finance,4
+8,Hank,D,50,47000.75,2016-06-12,True,Marketing,8
+9,Ivy,A,,59000.00,2022-05-19,False,HR,1
+10,Zara,B,26,900000.00,2020-08-14,True,Engineering,4

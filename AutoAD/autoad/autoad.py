@@ -59,6 +59,7 @@ class AutoAD:
     def transform(self, X: ndarray | pd.DataFrame, y=None):
         if self.fitted_pipeline is not None:
             self.X_transformed = X
+
             if list(X.columns) != list(self.X_fit.columns):
                 raise Exception(
                     f"Column names must be identical!\n\n{self.X_fit.columns}\n{X.columns}"
@@ -134,7 +135,7 @@ class AutoAD:
         columns_with_no_variance = []
 
         for col in X.columns:
-            if True is is_numeric_dtype(X[col]) and X[col].std() <= 0.5:
+            if True is is_numeric_dtype(X[col]) and X[col].std() <= 0.1:
                 columns_with_no_variance.append(col)
 
         return X.drop(columns_with_no_variance, axis=1)
