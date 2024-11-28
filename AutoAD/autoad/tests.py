@@ -61,7 +61,6 @@ class TestPipelineConsistency(unittest.TestCase):
         pipeline = AutoAD()
         pipeline.fit(X=X_train, y=None, remove_columns_no_variance=True)
         pipeline.transform(X=X_test, y=None)
-        # pdb.set_trace()
 
         self.assertEqual(
             list(pipeline.X_fit.columns), list(pipeline.X_transformed.columns)
