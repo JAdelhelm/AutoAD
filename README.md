@@ -92,19 +92,14 @@ Both methods (MOD Z-Value and Tukey Method) are resilient against outliers, ensu
 
 
 
-<!-- ## Abstract View (Code Structure) -->
-<!-- ![Abstract view of the project](./images/project.png) -->
-<!-- ![Abstract view of the project](https://raw.githubusercontent.com/JAdelhelm/AutoPrep/main/images/project.png) -->
-
-
 
 
 ---
 
-
+<!--
 ### Reference
 - https://www.researchgate.net/publication/379640146_Detektion_von_Anomalien_in_der_Datenqualitatskontrolle_mittels_unuberwachter_Ansatze (German Thesis)
-
+-->
 
 
 
