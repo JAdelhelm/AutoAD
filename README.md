@@ -1,4 +1,4 @@
-# AutoAD -  Automated pre-processing pipeline for the detection of anomalies
+# AutoAD -  Automated preprocessing-pipeline for the detection of anomalies
 
 
 
