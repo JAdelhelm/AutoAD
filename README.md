@@ -10,6 +10,8 @@
 conda create -n auto_ad python=3.11
 conda activate auto_ad
 
+cd AutoAD
+
 pip install -r requirements.txt
 python main.py
 ```
