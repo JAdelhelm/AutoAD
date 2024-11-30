@@ -1,4 +1,4 @@
-# AutoAD -  Automated preprocessing-pipeline for the detection of anomalies
+# AutoAD -  A framework for the rapid detection of anomalies in (big) datasets
 
 
 
