@@ -19,6 +19,8 @@ class AutoAD:
         self.X_fit = None
         self.X_transformed = None
 
+        self.feature_importances_clf = None
+
     def fit(
         self,
         X: ndarray | pd.DataFrame,
@@ -66,10 +68,14 @@ class AutoAD:
                 )
             if self.clf_ad_fitted is not None:
                 X_transformed = self.fitted_pipeline.transform(X=X)
+                self.feature_importances(X_transformed)
                 y_scores = self.clf_ad_fitted.decision_function(X_transformed)
+                
+                X["AD_score"] = y_scores
+                X["MAD_Total"] = X_transformed["MAD_Total"]
+                X["Tukey_Total"] = X_transformed["Tukey_Total"]
 
-                X_transformed["AD_score"] = y_scores
-                return X_transformed.sort_values("AD_score", ascending=False)
+                return X.sort_values("AD_score", ascending=False)
 
             return self.fitted_pipeline.transform(X=X)
         else:
@@ -77,6 +83,16 @@ class AutoAD:
 
     def fit_transform(self, X: ndarray | pd.DataFrame, y=None):
         return AutoAD.create_pipeline().fit(X=X).transform(X=X)
+
+    def feature_importances(self, X_transformed):
+        try:
+            feature_importance_df = pd.DataFrame({
+                'Feature': X_transformed.columns,
+                'Importance': self.clf_ad_fitted.feature_importances_
+            }).sort_values(by='Importance', ascending=False)
+            self.feature_importances_clf = feature_importance_df
+        except Exception as e:
+            print("Couldnt get feature importances..")
 
     @staticmethod
     def create_pipeline(pipeline_type: str = "", n_jobs: int = -1):

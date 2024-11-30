@@ -16,6 +16,10 @@ pip install -r requirements.txt
 ```
 ---
 
+## Examples
+
+Also Checkout the Examples in ``examples.ipynb``.
+
 ````python
 import pandas as pd
 import numpy as np

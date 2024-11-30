@@ -17,3 +17,5 @@ docs/_build
 tutorial_pypi.txt
 /test.ipynb
 /setup.py
+/AutoAD/kaggle.json
+/AutoAD/datasets
