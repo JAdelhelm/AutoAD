@@ -82,7 +82,7 @@ Both methods (MOD Z-Value and Tukey Method) are resilient against outliers, ensu
 
 
 ## Pipeline - Built-in Logic
-<!-- ![Logic of Pipeline](./images/decision_rules.png) -->
+<!-- ![Logic of Pipeline](./AutoAD/autoad/img/decision_rules.png) -->
 ![Logic of Pipeline](https://raw.githubusercontent.com/JAdelhelm/AutoPrep/main/AutoPrep/img/decision_rules.png) 
 
 - I used sklearn's Pipeline and Transformer concept to create this preprocessing pipeline
