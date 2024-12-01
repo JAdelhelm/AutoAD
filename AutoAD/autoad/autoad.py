@@ -52,7 +52,7 @@ class AutoAD:
         if clf_ad is not None:
             X_ad_prepared = self.fitted_pipeline.transform(
                 X=X
-            )  # needs to be prepared, because of only numeric
+            )  # needs to be prepared, because only numeric columns are allowed
 
             self.clf_ad_fitted = clf_ad.fit(X=X_ad_prepared)
 
@@ -60,39 +60,44 @@ class AutoAD:
 
     def transform(self, X: ndarray | pd.DataFrame, y=None):
         if self.fitted_pipeline is not None:
-            self.X_transformed = X
+            self.X_transformed = self.fitted_pipeline.transform(X=X)
 
             if list(X.columns) != list(self.X_fit.columns):
                 raise Exception(
                     f"Column names must be identical!\n\n{self.X_fit.columns}\n{X.columns}"
                 )
             if self.clf_ad_fitted is not None:
-                X_transformed = self.fitted_pipeline.transform(X=X)
-                self.feature_importances(X_transformed)
-                y_scores = self.clf_ad_fitted.decision_function(X_transformed)
-                
+                y_scores = self.clf_ad_fitted.decision_function(
+                    self.X_transformed
+                )
+
                 X["AD_score"] = y_scores
-                X["MAD_Total"] = X_transformed["MAD_Total"]
-                X["Tukey_Total"] = X_transformed["Tukey_Total"]
+                X["MAD_Total"] = self.X_transformed["MAD_Total"]
+                X["Tukey_Total"] = self.X_transformed["Tukey_Total"]
 
                 return X.sort_values("AD_score", ascending=False)
 
-            return self.fitted_pipeline.transform(X=X)
+            return self.X_transformed
         else:
             raise Exception("Please fit the pipeline first.")
 
     def fit_transform(self, X: ndarray | pd.DataFrame, y=None):
         return AutoAD.create_pipeline().fit(X=X).transform(X=X)
 
-    def feature_importances(self, X_transformed):
+    @property
+    def feature_importances(self):
         try:
-            feature_importance_df = pd.DataFrame({
-                'Feature': X_transformed.columns,
-                'Importance': self.clf_ad_fitted.feature_importances_
-            }).sort_values(by='Importance', ascending=False)
+            feature_importance_df = pd.DataFrame(
+                {
+                    "Feature": self.X_transformed.columns,
+                    "Importance": self.clf_ad_fitted.feature_importances_,
+                }
+            ).sort_values(by="Importance", ascending=False)
             self.feature_importances_clf = feature_importance_df
+            return feature_importance_df
         except Exception as e:
-            print("Couldnt get feature importances..")
+            print("Couldn't get feature importances:", e)
+            return None
 
     @staticmethod
     def create_pipeline(pipeline_type: str = "", n_jobs: int = -1):

@@ -195,6 +195,130 @@ class TestPipelineConsistency(unittest.TestCase):
         assert isinstance(X_output, pd.DataFrame)
 
 
+
+
+
+
+
+    def test_pipeline_handling_mixed_dtypes(self):
+        """
+        Test how the pipeline handles a mix of numerical, categorical, and text data.
+        """
+        mixed_dtype_df = pd.DataFrame(
+            {
+                "ID": [1, 2, 3, 4],
+                "Category": ["A", "B", "A", "C"],
+                "Value": [100.5, 200.75, np.nan, 300.1],
+                "Description": ["Test1", "Test2", "Test3", "Test4"],
+            }
+        )
+        pipeline = AutoAD()
+        transformed_data = pipeline.fit_transform(mixed_dtype_df)
+
+        # Ensure no unexpected errors occurred
+        assert isinstance(transformed_data, pd.DataFrame)
+        assert len(transformed_data) == len(mixed_dtype_df)
+
+    def test_pipeline_with_missing_values(self):
+        """
+        Test the pipeline's handling of missing values in various columns.
+        """
+        df_missing_values = pd.DataFrame(
+            {
+                "Feature1": [1, 2, np.nan, 4],
+                "Feature2": [np.nan, "B", "C", "D"],
+                "Feature3": [100.5, 200.75, 300.1, np.nan],
+            }
+        )
+        pipeline = AutoAD()
+        transformed_data = pipeline.fit_transform(df_missing_values)
+
+        # Verify that missing values are handled correctly
+        assert isinstance(transformed_data, pd.DataFrame)
+        assert not transformed_data.isnull().values.any(), "Missing values not handled properly."
+
+    def test_pipeline_retains_index(self):
+        """
+        Test that the pipeline retains the index of the original DataFrame.
+        """
+        df_indexed = pd.DataFrame(
+            {
+                "Index": [10, 20, 30, 40],
+                "Feature1": [1, 2, 3, 4],
+            }
+        ).set_index("Index")
+        pipeline = AutoAD()
+        transformed_data = pipeline.fit_transform(df_indexed)
+
+        assert isinstance(transformed_data, pd.DataFrame)
+        assert transformed_data.index.equals(df_indexed.index), "Index mismatch after transformation."
+
+
+
+    def test_pipeline_with_unseen_categories(self):
+        """
+        Test the pipeline's behavior when encountering unseen categories in test data.
+        """
+        train_data = pd.DataFrame({"Category": ["A", "B", "C"]})
+        test_data = pd.DataFrame({"Category": ["A", "D", "E"]})
+
+        pipeline = AutoAD()
+        pipeline.fit(train_data)
+        pdb.set_trace()
+        transformed_test = pipeline.transform(test_data)
+
+        # Ensure unseen categories are handled without errors
+        assert isinstance(transformed_test, pd.DataFrame)
+        assert "Category" in transformed_test.columns
+
+
+
+    def test_pipeline_feature_scaling(self):
+        """
+        Test that numerical features are correctly scaled if scaling is enabled.
+        """
+        df_scaling = pd.DataFrame(
+            {
+                "Feature1": [1, 2, 3, 4],
+                "Feature2": [100, 200, 300, 400],
+            }
+        )
+        pipeline = AutoAD(scale_numerical_features=True)
+        transformed_data = pipeline.fit_transform(df_scaling)
+
+        # Ensure numerical features are scaled between 0 and 1
+        assert transformed_data["Feature1"].min() >= 0 and transformed_data["Feature1"].max() <= 1
+        assert transformed_data["Feature2"].min() >= 0 and transformed_data["Feature2"].max() <= 1
+
+    def test_pipeline_with_custom_preprocessing(self):
+        """
+        Test the pipeline's ability to accept custom preprocessing steps.
+        """
+        def custom_preprocessor(df):
+            df["CustomFeature"] = df["ID"] * 2
+            return df
+
+        df_custom = pd.DataFrame({"ID": [1, 2, 3, 4]})
+        pipeline = AutoAD(custom_preprocessor=custom_preprocessor)
+        transformed_data = pipeline.fit_transform(df_custom)
+
+        # Ensure custom preprocessing has been applied
+        assert "CustomFeature" in transformed_data.columns
+        assert (transformed_data["CustomFeature"] == df_custom["ID"] * 2).all()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
     # Running the tests
     pytest.main()
