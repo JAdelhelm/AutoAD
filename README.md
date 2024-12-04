@@ -73,9 +73,9 @@ Both methods (MOD Z-Value and Tukey Method) are resilient against outliers, ensu
    - (John T. Hancock and Taghi M. Khoshgoftaar. "Survey on categorical data for neural networks." In: Journal of Big Data 7.1 (2020), pp. 1–41.), Tables 2, 4
    - (Diogo Seca and João Mendes-Moreira. "Benchmark of Encoders of Nominal Features for Regression." In: World Conference on Information Systems and Technologies. 2021, pp. 146–155.), P. 151
 
-#### 📌 Transformation of time series data and standardization of data with RobustScaler / *Normalization for better prediction results*
+#### 📌 Transformation of time series and standardization / *Normalization for better prediction results*
 
-#### 📌 Labeling of NaN values in an extra column instead of removing them / *No loss of information*
+#### 📌 Labeling of NaN values instead of removing them / *No loss of information*
 
 
 
