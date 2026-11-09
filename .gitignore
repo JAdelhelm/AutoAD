@@ -1,8 +1,20 @@
+# Python
 __pycache__/
-.idea/
+*.py[cod]
+
+# Virtual environments and secrets
 venv/
+.venv/
 .env
-tests
+kaggle.json
+
+# Tool caches and test output
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
 
 # Packaging
 build/
@@ -13,9 +25,19 @@ dist/
 # Sphinx
 docs/_build
 
-# PyPi tutorial
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local notes and generated analysis, not part of the project
+PLAN.md
+graphify-out/
+.claude/settings.local.json
 tutorial_pypi.txt
 /test.ipynb
-/setup.py
-/AutoAD/kaggle.json
-/AutoAD/datasets
+*.log
+
+# Downloaded example data
+/examples/datasets
