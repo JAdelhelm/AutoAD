@@ -40,8 +40,13 @@ The API is not compatible with 1.0.0.
 - Numbers stored as text (`"2001"`) were parsed as dates.
 - Columns of type `category` crashed, `string` columns were dropped silently and `bool`
   columns bypassed the missing-value marker.
-- Missing values that only occur in new data are reported (`missing_count`) instead of
-  crashing (`MissingIndicator(features="missing-only")`) or being ignored.
+- Missing values that only occur in new data no longer crash `transform()`
+  (`MissingIndicator(features="missing-only")`) or vanish silently: `report()` lists them
+  in `Missing_Columns`.
+- Features that are constant in the training data (for example `missing_count` without
+  missing values, or the BinaryEncoder's bit for unknown categories) are removed before
+  the detector. They made PyOD's PCA return infinite scores on 17 of 19 benchmark
+  datasets.
 - Importing AutoAD no longer disables all warnings, changes the global scikit-learn
   configuration or prints to stdout.
 - pandas 3 support (`fillna(method=)`, `infer_datetime_format`, new string dtype,
@@ -50,7 +55,16 @@ The API is not compatible with 1.0.0.
 ### Added
 
 - `decision_function()`, `predict()`, `report()` and `get_feature_names_out()`.
-- `report()` lists the columns that triggered Tukey and MAD per row.
+- `report()` lists the columns that triggered Tukey and MAD per row, the columns with
+  missing values (`Missing_Columns`) and categories not seen during `fit`
+  (`Unseen_Columns`).
+- `dropped_features_` lists the features removed because they are constant in training.
+- `findings(X)` returns the findings behind `report()` per cell, as boolean DataFrames.
+- `duplicates(X, tolerance=0.0)` finds rows that duplicate another row: KNN with 2
+  neighbours on the feature matrix, where a low score (distance to the closest other row)
+  marks a duplicate. Rows are grouped; ID-like and excluded columns are not compared.
+- Web interface in `webui/` (Django): upload a file, run a detector, explore the
+  anomalies and duplicates in charts and tables and check new files with the same model.
 - ID-like columns are dropped (`drop_id_columns`).
 - Frequency encoding for categorical columns with many distinct values.
 - Date features only include hour, minute and second when a column contains a time of day.

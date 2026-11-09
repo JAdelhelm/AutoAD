@@ -1,0 +1,27 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AutoAD{% endblock %} · AutoAD</title>
+  <link rel="stylesheet" href="{% static 'detection/app.css' %}">
+  <script src="{% static 'detection/app.js' %}" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="{% url 'detection:index' %}">AutoAD</a>
+      <span class="tagline">Anomaly detection for tables</span>
+    </div>
+  </header>
+  <main class="wrap">
+    {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}<li class="message {{ message.tags }}">{{ message }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

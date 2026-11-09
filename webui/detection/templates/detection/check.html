@@ -1,0 +1,21 @@
+{% extends "detection/base.html" %}
+{% block title %}Check new data · {{ analysis.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Check new data</h1>
+    <p class="sub">Score another file with the model of “{{ analysis.name }}”. It needs the same columns as
+      {{ analysis.file_name }}; their order does not matter.</p>
+  </div>
+  <div class="actions"><a class="button" href="{% url 'detection:analysis' analysis.pk %}">Back to results</a></div>
+</div>
+<section class="card">
+  <form method="post" enctype="multipart/form-data" data-busy="Checking…">
+    {% csrf_token %}
+    {% include "detection/_upload_fields.html" %}
+    <div class="actions" style="margin-top:16px">
+      <button type="submit" class="primary">Check file</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

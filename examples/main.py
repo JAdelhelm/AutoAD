@@ -40,6 +40,9 @@ def main() -> None:
     # 2. Check what AutoAD learned about the columns.
     print("Column types:", ad.column_types_)
     print("Dropped columns:", ad.dropped_columns_)
+    # Features without variance in the ten training rows carry no information:
+    # no missing values (missing_count) and no value flagged by the MAD (MAD_Total).
+    print("Dropped constant features:", ad.dropped_features_)
     features = ad.get_feature_names_out()
     print(f"The detector sees {len(features)} features:", ", ".join(features))
 
@@ -49,7 +52,9 @@ def main() -> None:
     report = ad.report(X_test)
     report["is_anomaly"] = ad.predict(X_test)
 
-    columns = ["ID", "Name", "Age", "Salary", "AD_score", "is_anomaly", "MAD_Columns"]
+    # The *_Columns explain each row: extreme values (MAD), missing values and
+    # categories that did not occur in the training data.
+    columns = ["ID", "Name", "Salary", "AD_score", "is_anomaly", "MAD_Columns", "Missing_Columns", "Unseen_Columns"]
     print("\nNew data, most unusual rows first:")
     print(report.sort_values("AD_score", ascending=False)[columns].to_string(index=False))
 

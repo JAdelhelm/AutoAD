@@ -1,0 +1,85 @@
+{% extends "detection/base.html" %}
+{% load detection_extras %}
+{% block title %}Row {{ row.number }} · {{ scoring.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Row {{ row.number }}
+      {% if row.is_anomaly %}<span class="badge anomaly" style="font-size:1rem; margin-left:8px">Anomaly</span>{% endif %}
+    </h1>
+    <p class="sub">{{ analysis.name }} · {% if scoring.is_training %}training data{% else %}{{ scoring.name }}{% endif %}
+      · row 1 is the first data row of the file</p>
+  </div>
+  <div class="actions">
+    {% if row.previous %}<a class="button" href="{% url 'detection:row' scoring.pk row.previous %}">← Higher score</a>{% endif %}
+    {% if row.next %}<a class="button" href="{% url 'detection:row' scoring.pk row.next %}">Lower score →</a>{% endif %}
+    <a class="button" href="{% url 'detection:scoring' scoring.pk %}#rows">Back to results</a>
+  </div>
+</div>
+
+<div class="tiles">
+  <div class="tile{% if row.is_anomaly %} alert-tile{% endif %}">
+    <div class="label">Anomaly score</div>
+    <div class="value">{{ row.score }}</div>
+    <div class="detail">threshold {{ row.threshold }}</div>
+  </div>
+  <div class="tile">
+    <div class="label">Rank</div>
+    <div class="value">{{ row.rank|thousands }}</div>
+    <div class="detail">of {{ scoring.n_rows|thousands }} rows, 1 = most unusual</div>
+  </div>
+  <div class="tile">
+    <div class="label">{% if row.duplicate.is_duplicate %}Duplicate of row{% else %}Closest other row{% endif %}</div>
+    <div class="value">{% if row.duplicate.closest %}<a href="{% url 'detection:row' scoring.pk row.duplicate.closest %}">{{ row.duplicate.closest }}</a>{% else %}–{% endif %}</div>
+    <div class="detail">
+      {% if row.duplicate.is_duplicate %}group {{ row.duplicate.group }}, {% if row.duplicate.differing %}differs in {{ row.duplicate.differing }}{% else %}identical values{% endif %}
+      {% elif row.duplicate.closest %}distance {{ row.duplicate.score }}; not a duplicate{% endif %}
+    </div>
+  </div>
+</div>
+
+<section class="card">
+  <h2>Values</h2>
+  <p class="section-sub">Columns with findings first. For numbers, the strip shows the training data: the line spans
+    98 % of the values (1st to 99th percentile), the box the middle half (Q1 to Q3), the tick the median and the
+    diamond this row's value. A value far beyond the line is pinned to its end.</p>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Column</th>
+          <th>Value</th>
+          <th>Findings</th>
+          <th>Compared with the training data</th>
+          <th>Used as</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cell in row.cells %}
+          <tr>
+            <td>{{ cell.name }}</td>
+            <td class="value {{ cell.css }}" title="{{ cell.value }}">{{ cell.value }}</td>
+            <td>{% for finding in cell.findings %}<div>{{ finding }}</div>{% empty %}<span class="muted">–</span>{% endfor %}</td>
+            <td>
+              {% if cell.strip %}{% with strip=cell.strip %}
+                <div class="strip" aria-hidden="true">
+                  <span class="range" style="left: {{ strip.range_left }}%; width: {{ strip.range_width }}%"></span>
+                  <span class="box" style="left: {{ strip.box_left }}%; width: {{ strip.box_width }}%"></span>
+                  <span class="median" style="left: {{ strip.median }}%"></span>
+                  {% if strip.value is not None %}
+                    <span class="value{% if cell.findings %} flagged{% endif %}" style="left: {{ strip.value }}%"></span>
+                  {% endif %}
+                  {% if strip.outside == "below" %}<span class="outside" style="left: 10px">◀ far below</span>{% endif %}
+                  {% if strip.outside == "above" %}<span class="outside" style="right: 10px">far above ▶</span>{% endif %}
+                </div>
+              {% endwith %}{% endif %}
+              <div class="small muted">{{ cell.context }}</div>
+            </td>
+            <td class="status">{{ cell.status }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

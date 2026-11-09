@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 from pyod.models.iforest import IForest
 from pyod.models.lof import LOF
+from pyod.models.pca import PCA
 from sklearn.base import clone
 
 from autoad import AutoAD
@@ -14,9 +15,7 @@ def test_fit_returns_self(x_train):
 
 
 def test_fit_transform_matches_fit_then_transform(x_train):
-    pd.testing.assert_frame_equal(
-        AutoAD().fit_transform(x_train), AutoAD().fit(x_train).transform(x_train)
-    )
+    pd.testing.assert_frame_equal(AutoAD().fit_transform(x_train), AutoAD().fit(x_train).transform(x_train))
 
 
 def test_constant_column_does_not_break_transform(x_train, x_test):
@@ -101,9 +100,70 @@ def test_missing_bool_value_is_counted():
 
 
 def test_new_missing_values_in_test_data_are_reported(x_train, x_test):
-    # Age has no missing values in training, three in the test data.
-    out = AutoAD().fit(x_train).transform(x_test)
+    # Age has no missing values in training, three in the test data. missing_count is
+    # constant in training and therefore not a feature, but report() names the column.
+    ad = AutoAD().fit(x_train)
+    assert "missing_count" in ad.dropped_features_
+    assert "missing_count" not in ad.get_feature_names_out()
+    missing = ad.report(x_test)["Missing_Columns"]
+    assert missing.tolist() == ["", "", "", "Age", "", "", "Age", "", "Age", ""]
+
+
+def test_missing_count_is_a_feature_when_training_data_has_missing_values(x_train, x_test):
+    train = x_train.copy()
+    train.loc[[1, 5], "Age"] = np.nan
+    out = AutoAD(scaler=None).fit(train).transform(x_test)
     assert out["missing_count"].tolist() == [0, 0, 0, 1, 0, 0, 1, 0, 1, 0]
+
+
+def test_no_constant_features_reach_the_detector(x_train, x_test):
+    # Regression: missing_count (no missing values in training) and the BinaryEncoder's
+    # bit for unknown categories were constant, and PyOD's PCA returned inf scores.
+    ad = AutoAD(PCA()).fit(x_train)
+    assert (ad.transform(x_train).nunique() > 1).all()
+    assert np.isfinite(ad.decision_function(x_test)).all()
+
+
+def test_drop_constant_false_keeps_constant_features(x_train):
+    ad = AutoAD(drop_constant=False).fit(x_train)
+    assert ad.dropped_features_ == []
+    assert "missing_count" in ad.get_feature_names_out()
+
+
+def test_all_features_constant_raises():
+    X = pd.DataFrame({"a": [1.0, 1.0, np.nan, 1.0]})
+    with pytest.raises(ValueError, match="All features are constant"):
+        AutoAD(missing_indicator=None).fit(X)
+
+
+def test_report_names_unseen_categories(x_train, x_test):
+    # Row 9 of the test data is "Zara", a name that does not occur in training.
+    unseen = AutoAD().fit(x_train).report(x_test)["Unseen_Columns"]
+    assert unseen.loc[9] == "Name"
+    assert (unseen.drop(index=9) == "").all()
+
+
+def test_findings_flag_cells_and_match_report(x_train, x_test):
+    X = x_test.set_axis(range(100, 110), axis=0)
+    ad = AutoAD().fit(x_train)
+    findings = ad.findings(X)
+    assert sorted(findings) == ["MAD", "Missing", "Tukey", "Unseen"]
+    for flags in findings.values():
+        assert flags.index.tolist() == list(range(100, 110))
+        assert all(pd.api.types.is_bool_dtype(dtype) for dtype in flags.dtypes)
+    numeric = ad.column_groups_["numeric"]
+    assert list(findings["Tukey"].columns) == numeric
+    assert list(findings["MAD"].columns) == numeric
+    assert list(findings["Unseen"].columns) == ad.column_groups_["binary"] + ad.column_groups_["frequency"]
+    # Row 3: salary of 8,000,000. Rows 3, 6, 8: Age missing. Row 9: unseen name "Zara".
+    assert findings["MAD"].loc[103, "Salary"]
+    assert findings["Missing"]["Age"].tolist() == [False] * 3 + [True] + [False] * 2 + [True, False, True, False]
+    assert findings["Unseen"].loc[109, "Name"]
+    assert findings["Unseen"].drop(index=109).sum().sum() == 0
+
+    report = ad.report(X)
+    assert (report["MAD_Total"] == findings["MAD"].sum(axis=1)).all()
+    assert (report["Tukey_Total"] == findings["Tukey"].sum(axis=1)).all()
 
 
 def test_unseen_categories_do_not_break_transform():
@@ -123,8 +183,16 @@ def test_report_keeps_rows_and_names_triggering_columns(x_train, x_test):
     report = AutoAD(IForest(random_state=0)).fit(x_train).report(x_test)
     assert report.index.tolist() == x_test.index.tolist()
     assert list(report.columns[: x_test.shape[1]]) == list(x_test.columns)
-    for column in ["AD_score", "Tukey_Total", "MAD_Total", "Tukey_Columns", "MAD_Columns"]:
-        assert column in report
+    added = [
+        "AD_score",
+        "Tukey_Total",
+        "Tukey_Columns",
+        "MAD_Total",
+        "MAD_Columns",
+        "Missing_Columns",
+        "Unseen_Columns",
+    ]
+    assert list(report.columns[x_test.shape[1] :]) == added
     # Row 3 has a salary of 8,000,000 instead of 8,000.
     assert "Salary" in report.loc[3, "MAD_Columns"]
     assert report.loc[3, "MAD_Total"] >= 1
@@ -211,9 +279,12 @@ def test_unknown_scaler_raises(x_train):
 
 
 def test_missing_indicator_modes(x_train, x_test):
-    columns = AutoAD(missing_indicator="columns").fit(x_train).transform(x_test)
+    train = x_train.copy()
+    train.loc[[1, 5], "Age"] = np.nan  # an indicator that is constant in training is dropped
+    columns = AutoAD(missing_indicator="columns", scaler=None).fit(train).transform(x_test)
     assert columns["Age_MISSING"].sum() == 3
-    none = AutoAD(missing_indicator=None).fit(x_train).transform(x_test)
+    assert "Salary_MISSING" not in columns
+    none = AutoAD(missing_indicator=None).fit(train).transform(x_test)
     assert not any("missing" in name.lower() for name in none.columns)
 
 
@@ -224,6 +295,14 @@ def test_exclude_columns(x_train, x_test):
 
 
 def test_high_cardinality_columns_are_frequency_encoded():
-    X = pd.DataFrame({"city": [f"c{i % 30}" for i in range(90)], "v": np.arange(90) % 7})
+    # 30 cities; c0 is more frequent than the others, so the frequency varies.
+    cities = [f"c{i % 30}" for i in range(80)] + ["c0"] * 10
+    X = pd.DataFrame({"city": cities, "v": np.arange(90) % 7})
     names = AutoAD().fit(X).get_feature_names_out().tolist()
     assert "city_FREQ" in names
+
+
+def test_frequency_feature_without_variation_is_dropped():
+    # Every city occurs equally often, so the frequency is the same for every row.
+    X = pd.DataFrame({"city": [f"c{i % 30}" for i in range(90)], "v": np.arange(90) % 7})
+    assert "city_FREQ" in AutoAD().fit(X).dropped_features_

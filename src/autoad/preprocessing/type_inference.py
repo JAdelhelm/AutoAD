@@ -46,9 +46,7 @@ def to_datetime(series: pd.Series) -> pd.Series:
 def clean_missing(series: pd.Series) -> pd.Series:
     """Replace placeholder strings such as ``""`` or ``"nan"`` by NaN in text columns."""
     if not (
-        is_object_dtype(series.dtype)
-        or is_string_dtype(series.dtype)
-        or isinstance(series.dtype, pd.CategoricalDtype)
+        is_object_dtype(series.dtype) or is_string_dtype(series.dtype) or isinstance(series.dtype, pd.CategoricalDtype)
     ):
         return series
     values = series.to_numpy(dtype=object, copy=True)
@@ -168,9 +166,7 @@ class TypeInferenceTransformer(TransformerMixin, BaseEstimator):
         missing = [c for c in self.feature_names_in_ if c not in frame.columns]
         if missing:
             raise ValueError(f"X is missing columns seen during fit: {missing}")
-        columns = {
-            col: _CASTS[kind](clean_missing(frame[col])) for col, kind in self.column_types_.items()
-        }
+        columns = {col: _CASTS[kind](clean_missing(frame[col])) for col, kind in self.column_types_.items()}
         return pd.DataFrame(columns, index=frame.index)
 
     def get_feature_names_out(self, input_features=None):
@@ -207,9 +203,7 @@ class TypeInferenceTransformer(TransformerMixin, BaseEstimator):
 
     def _looks_like_datetime(self, values: pd.Series) -> bool:
         # Words such as "today" or "March" parse as dates, real dates contain digits.
-        has_digit = np.fromiter(
-            (bool(_DIGIT.search(str(v))) for v in values), dtype=bool, count=len(values)
-        )
+        has_digit = np.fromiter((bool(_DIGIT.search(str(v))) for v in values), dtype=bool, count=len(values))
         if has_digit.mean() < self.datetime_threshold:
             return False
         parsed = to_datetime(values.astype(object))

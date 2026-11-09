@@ -14,8 +14,8 @@ jobs:
         with:
           python-version: "3.13"
       - run: python -m pip install ruff
-      - run: ruff check src tests examples
-      - run: ruff format --check src tests examples
+      - run: ruff check src tests examples webui
+      - run: ruff format --check src tests examples webui
 
   test:
     name: test (${{ matrix.os }}, Python ${{ matrix.python-version }})
@@ -34,6 +34,24 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - run: python -m pytest
       - run: python examples/main.py
+
+  webui:
+    name: web interface (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e . -r webui/requirements.txt
+      - run: python webui/manage.py check
+      - run: python webui/manage.py makemigrations --check --dry-run
+      - run: python webui/manage.py test detection
 
   test-oldest:
     # Lowest supported versions, matching the original development environment.

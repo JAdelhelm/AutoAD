@@ -57,6 +57,25 @@ features = ad.transform(X_test)        # the scaled matrix the detector sees
 More examples, with synthetic data, are in [`examples/examples.ipynb`](examples/examples.ipynb)
 (`pip install -e ".[examples]"`). [`examples/main.py`](examples/main.py) is a minimal script.
 
+## Web interface
+
+[`webui/`](webui/README.md) is a small Django app for working in the browser instead of
+in Python. You upload a CSV, Excel, JSON or Parquet file, check how AutoAD reads its
+columns and run a detector. The result page shows the anomaly score per row, the score
+distribution, a map of the rows, the findings per column and groups of duplicate rows.
+Below that is the table of rows with the unusual cells marked. A page per row explains
+the score, and the analysis can check new files against the same model.
+
+![Results page of the web interface: stat tiles, anomaly score per row, score distribution and map of rows](docs/img/webui_results.png)
+
+```bash
+pip install -e . -r webui/requirements.txt
+python webui/manage.py migrate
+python webui/manage.py runserver   # then open http://127.0.0.1:8080
+```
+
+It is a local tool without user accounts. Do not run it on a public server.
+
 ## Output
 
 ### `report(X)`
@@ -69,10 +88,48 @@ A copy of `X` (rows in their original order) with these columns added:
 | `Tukey_Total` | Number of the row's numeric values outside Tukey's fences (`Q1 - 1.5·IQR`, `Q3 + 1.5·IQR`). |
 | `MAD_Total` | Number of the row's numeric values with a modified z-score above 3.5. |
 | `Tukey_Columns`, `MAD_Columns` | Names of those columns, comma separated. |
+| `Missing_Columns` | Columns with a missing value in the row, including values that could not be read as the column's type. |
+| `Unseen_Columns` | Categorical columns whose value did not occur in the training data. |
+
+`findings(X)` returns the same findings per cell: a dict of boolean DataFrames
+(`"Tukey"`, `"MAD"`, `"Missing"`, `"Unseen"`) with the index of `X` and one column per
+input column the finding applies to. Use it instead of splitting the `*_Columns` strings.
+
+### `duplicates(X, tolerance=0.0)`
+
+Rows of `X` that duplicate another row of `X`. This is the anomaly logic turned around.
+A KNN detector with 2 neighbours is fitted on the feature matrix of `X` and scores the
+same rows. Every row is its own first neighbour, so the score is the distance to the
+closest *other* row, and a low score marks a duplicate. The fitted detector is not
+involved, and columns AutoAD does not use are not compared (ID-like, constant,
+`exclude_columns`). So two orders that differ only in their order number are duplicates.
+
+```python
+dups = ad.duplicates(X)
+dups[dups["is_duplicate"]].sort_values("Duplicate_group")
+```
+
+| Column | Meaning |
+| --- | --- |
+| `Duplicate_score` | Distance to the closest other row in the scaled feature space; 0 for identical rows. |
+| `Closest_row` | Index label of that row. |
+| `Differing_Columns` | Used columns in which the two rows differ; empty for identical rows. |
+| `Duplicate_group` | Number of the group of rows that duplicate each other, `<NA>` for other rows. |
+| `is_duplicate` | True for every row in a group. |
+
+With `tolerance=0` only rows with identical values count. The values are compared as well
+as the features, because different values can share a feature: two categories with the
+same frequency, or a missing value and the median it is imputed with. A larger tolerance
+also finds near duplicates within that distance. With the robust scaler, 0.05 allows one
+number to differ by 5 % of its interquartile range. Lowest scores are not simply flagged
+as duplicates (an inverted contamination), so a table without duplicates gets no flags.
 
 ### `transform(X)`
 
-The scaled feature matrix. Feature names (see `get_feature_names_out()`):
+The scaled feature matrix. Features that are constant in the training data are left out
+and listed in `dropped_features_`, for example `missing_count` if the training data has
+no missing values, or `MAD_Total` if no training value is flagged. Feature names (see
+`get_feature_names_out()`):
 
 | Column type | Features |
 | --- | --- |
@@ -81,7 +138,7 @@ The scaled feature matrix. Feature names (see `get_feature_names_out()`):
 | categorical, at most 20 distinct values | binary code `<name>_0`, `<name>_1`, ... ([BinaryEncoder](https://contrib.scikit-learn.org/category_encoders/binary.html)) |
 | categorical, more distinct values | `<name>_FREQ`: share of the category in the training data, 0 for unseen categories |
 | datetime | `<name>_YEAR`, `_MONTH`, `_DAY`, `_WKDAY`, plus `_HOUR`, `_MINUTE`, `_SECOND` if the column contains a time of day |
-| all columns | `missing_count`: number of missing values in the row, counted before imputation |
+| all columns | `missing_count`: number of missing values in the row, counted before imputation (only if the training data has missing values, otherwise it is constant) |
 
 ### Attributes after `fit`
 
@@ -89,6 +146,7 @@ The scaled feature matrix. Feature names (see `get_feature_names_out()`):
 | --- | --- |
 | `column_types_` | type learned for every column |
 | `dropped_columns_` | dropped columns and the reason (`"constant"` or `"id"`) |
+| `dropped_features_` | features removed because they are constant in the training data |
 | `column_groups_` | columns per feature group |
 | `feature_importances` | importance per feature, for detectors with `feature_importances_` such as `IForest` |
 | `preprocessor_`, `detector_` | the fitted scikit-learn pipeline and detector |
@@ -101,7 +159,7 @@ The scaled feature matrix. Feature names (see `get_feature_names_out()`):
 | `datetime_columns` | `None` | Columns to parse as dates. Other text columns become dates only if at least 95 % of their values are dates. |
 | `numerical_columns` | `None` | Columns to treat as numbers although they are stored as text. |
 | `exclude_columns` | `None` | Columns to ignore. They may be missing in later inputs. |
-| `drop_constant` | `True` | Drop columns with a single distinct value (missing counts as a value). |
+| `drop_constant` | `True` | Drop columns with a single distinct value (missing counts as a value), and features that are constant in the training data. Constant features carry no information and make some detectors fail (PyOD's PCA returns infinite scores). |
 | `drop_id_columns` | `True` | Drop ID-like columns: unique, complete values with a name such as `id`/`customer_id`, or unnamed integer columns with consecutive values (from 20 rows on). |
 | `max_binary_categories` | `20` | Categorical columns with more distinct values are frequency-encoded. |
 | `tukey_factor` | `1.5` | IQR multiple for Tukey's fences. |
@@ -129,7 +187,7 @@ flowchart LR
     C --> CE[binary code or frequency]
     DT --> DE[date and time parts]
     M --> MC[missing_count]
-    NV & TU & MA & BI & CE & DE & MC --> S[RobustScaler] --> P[PyOD detector]
+    NV & TU & MA & BI & CE & DE & MC --> F[drop features<br/>constant in training] --> S[RobustScaler] --> P[PyOD detector]
 ```
 
 **Types** are learned once during `fit`. Text columns become numeric if all values are
@@ -164,11 +222,17 @@ The original design diagram is in [`docs/img/decision_rules.png`](docs/img/decis
   their similarity.
 - Columns are treated as independent rows of a table. There is no sequence or time
   series model; dates are encoded as calendar parts.
-- A time of day is only encoded if the column contained one during `fit`. A column that
-  is constant during `fit` is dropped, even if it varies later.
+- A time of day is only encoded if the column contained one during `fit`. Columns and
+  features that are constant during `fit` are dropped, even if they vary later.
 - ID detection is a heuristic. Check `dropped_columns_`, or set `drop_id_columns=False`.
-- Missing values are imputed (median or most frequent value); their signal reaches the
-  detector only through `missing_count`.
+- Missing values are imputed (median or most frequent value). Their signal reaches the
+  detector only through `missing_count`, and only if the training data had missing
+  values. Missing values that first appear in new data therefore do not change
+  `AD_score`; `report()` lists them in `Missing_Columns`. Unseen categories still get a
+  code of their own (a new binary code, or frequency 0) and are listed in `Unseen_Columns`.
+- The same applies to `Tukey_Total` and `MAD_Total`: if no training value is flagged,
+  they are constant and not used by the detector. The extreme values themselves still
+  reach the detector, and `report()` still counts the findings.
 - Very small training sets give unstable scores. For neighbour-based detectors such as
   LOF or KNN, `n_neighbors` must be smaller than the number of training rows.
 

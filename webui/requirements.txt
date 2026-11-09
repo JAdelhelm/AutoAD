@@ -1,0 +1,6 @@
+# Dependencies of the web interface. Install from the repository root together with AutoAD:
+#   pip install -e . -r webui/requirements.txt
+django>=5.2
+plotly>=6  # only its bundled plotly.min.js is used, so the charts also work offline
+openpyxl>=3.1  # .xlsx files
+defusedxml>=0.7  # protects openpyxl against malicious XML

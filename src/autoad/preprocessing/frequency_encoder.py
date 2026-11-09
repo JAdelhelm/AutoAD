@@ -36,8 +36,7 @@ class FrequencyEncoder(TransformerMixin, BaseEstimator):
         frame = as_frame(X)
         remember_input(self, X)
         self.frequencies_ = [
-            _keys(frame.iloc[:, i]).value_counts(normalize=True).to_dict()
-            for i in range(frame.shape[1])
+            _keys(frame.iloc[:, i]).value_counts(normalize=True).to_dict() for i in range(frame.shape[1])
         ]
         return self
 

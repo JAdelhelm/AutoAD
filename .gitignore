@@ -33,6 +33,7 @@ Thumbs.db
 
 # Local notes and generated analysis, not part of the project
 PLAN.md
+PLAN_WEBUI.md
 graphify-out/
 .claude/settings.local.json
 tutorial_pypi.txt
@@ -41,3 +42,6 @@ tutorial_pypi.txt
 
 # Downloaded example data
 /examples/datasets
+
+# Database, uploads and results of the web interface
+/webui/data/

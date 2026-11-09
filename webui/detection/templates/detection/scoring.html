@@ -1,0 +1,273 @@
+{% extends "detection/base.html" %}
+{% load detection_extras %}
+{% block title %}{{ scoring.name }} · {{ analysis.name }}{% endblock %}
+{% block head %}<script src="{% url 'detection:plotly_js' %}?v={{ plotly_version }}" defer></script>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ analysis.name }}</h1>
+    <p class="sub">{{ detector }} · fitted on {{ analysis.train_rows|thousands }} rows of {{ analysis.file_name }}
+      {% if analysis.fit_seconds %}in {{ analysis.fit_seconds|floatformat:1 }} s{% endif %}</p>
+  </div>
+  <div class="actions">
+    <a class="button primary" href="{% url 'detection:check' analysis.pk %}">Check new data</a>
+    <a class="button" href="{% url 'detection:download' scoring.pk %}">Download report (CSV)</a>
+    <a class="button" href="{% url 'detection:configure' analysis.pk %}">Change settings</a>
+  </div>
+</div>
+
+<nav class="tabs" aria-label="Checked tables">
+  {% for item in scorings %}
+    <a href="{% url 'detection:scoring' item.pk %}"{% if item.pk == scoring.pk %} class="active" aria-current="page"{% endif %}>
+      {% if item.is_training %}Training data{% else %}{{ item.name }}{% endif %}
+      <span class="muted small">{{ item.n_anomalies|thousands }}</span>
+    </a>
+  {% endfor %}
+</nav>
+
+{% if notes %}<ul class="notes small">{% for note in notes %}<li>{{ note }}</li>{% endfor %}</ul>{% endif %}
+
+<div class="tiles">
+  <div class="tile">
+    <div class="label">Rows checked</div>
+    <div class="value">{{ scoring.n_rows|thousands }}</div>
+    <div class="detail">{% if scoring.is_training %}the training data{% else %}{{ scoring.file_name }}{% endif %}</div>
+  </div>
+  <div class="tile alert-tile">
+    <div class="label">Anomalies</div>
+    <div class="value">{{ scoring.n_anomalies|thousands }}</div>
+    <div class="detail">{{ scoring.anomaly_share|percent }} of the rows score above {{ table.threshold }}</div>
+  </div>
+  <div class="tile">
+    <div class="label">Rows with extreme values</div>
+    <div class="value">{{ scoring.summary.rows_extreme|thousands }}</div>
+    <div class="detail">by Tukey's fences or the modified z-score</div>
+  </div>
+  <div class="tile">
+    <div class="label">Rows with missing values</div>
+    <div class="value">{{ scoring.summary.rows_missing|thousands }}</div>
+    <div class="detail">empty or not readable as the column's type</div>
+  </div>
+  {% if not scoring.is_training %}
+    <div class="tile">
+      <div class="label">Rows with new categories</div>
+      <div class="value">{{ scoring.summary.rows_unseen|thousands }}</div>
+      <div class="detail">values that did not occur in training</div>
+    </div>
+  {% endif %}
+  <div class="tile">
+    <div class="label">Duplicate rows</div>
+    <div class="value">{{ scoring.summary.rows_duplicate|thousands }}</div>
+    <div class="detail">in {{ scoring.summary.duplicate_groups|thousands }} group{{ scoring.summary.duplicate_groups|pluralize }} of rows that match each other</div>
+  </div>
+</div>
+
+<section class="card">
+  <h2>Anomaly score per row</h2>
+  <p class="section-sub">Higher means more unusual. Rows above the threshold are labelled as anomalies; clusters
+    can point to a faulty block of the file. Click a point to see why the row stands out.</p>
+  <div class="chart" data-chart="scores" data-row-url="{{ row_url }}"></div>
+</section>
+
+<div class="grid-2 stack">
+  <section class="card">
+    <h2>Score distribution</h2>
+    <p class="section-sub">How clearly the anomalies separate from the rest.</p>
+    <div class="chart" data-chart="histogram"></div>
+  </section>
+  <section class="card">
+    <h2>Map of rows</h2>
+    <p class="section-sub">Rows projected onto the two main directions in which normal training rows vary (PCA of
+      AutoAD's feature matrix). Distances far from the center are compressed, so isolated points are far off,
+      not to scale.</p>
+    {% if figures.map %}
+      <div class="chart" data-chart="map" data-row-url="{{ row_url }}"></div>
+    {% else %}
+      <p class="empty">Needs at least two features.</p>
+    {% endif %}
+  </section>
+</div>
+{% if sampled %}
+  <p class="chart-note">The point charts show every anomaly and a random sample of the other rows, at most
+    {{ max_plot_points|thousands }} points.</p>
+{% endif %}
+{{ figures|json_script:"chart-data" }}
+
+<div class="grid-2 stack">
+  <section class="card">
+    <h2>Findings per column</h2>
+    <p class="section-sub">Rows with a finding in each input column. The detector score combines all columns;
+      these counts show where single values stand out.</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Column</th>
+            <th>Used as</th>
+            <th>Rows with findings</th>
+            <th class="num" title="{{ findings_labels.Tukey }}">Tukey</th>
+            <th class="num" title="{{ findings_labels.MAD }}">MAD</th>
+            <th class="num">Missing</th>
+            {% if not scoring.is_training %}<th class="num">New</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in column_findings %}
+            <tr>
+              <td>{{ entry.name }}</td>
+              <td class="status">{{ entry.status }}</td>
+              <td>
+                <div class="databar" title="{{ entry.share|percent }}">
+                  <span class="track"><span class="fill" style="width: {{ entry.width }}%"></span></span>
+                  <span class="num">{{ entry.rows|thousands }}</span>
+                </div>
+              </td>
+              <td class="num">{{ entry.counts.Tukey|default_if_none:"–" }}</td>
+              <td class="num">{{ entry.counts.MAD|default_if_none:"–" }}</td>
+              <td class="num">{{ entry.counts.Missing|default_if_none:"–" }}</td>
+              {% if not scoring.is_training %}<td class="num">{{ entry.counts.Unseen|default_if_none:"–" }}</td>{% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="card">
+    <h2>Feature importance</h2>
+    {% if figures.importances %}
+      <p class="section-sub">How much the Isolation Forest relied on each feature (top 15).</p>
+      <div class="chart" data-chart="importances"></div>
+    {% else %}
+      <p class="section-sub">Only Isolation Forest reports feature importances. The column findings on the left
+        and the row pages explain the scores of the other detectors.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="card" id="duplicates">
+  <h2>Duplicates</h2>
+  <p class="section-sub">Rows that match another row of this table. A KNN with 2 neighbours gives every row the
+    distance to its closest other row; identical rows have distance 0{% if duplicate_tolerance %}, and rows up to
+    {{ duplicate_tolerance }} count as near duplicates{% endif %}.
+    {% if ignored_for_duplicates %}Not compared: {{ ignored_for_duplicates|join:", " }}.{% endif %}</p>
+  {% if duplicates.groups %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="num">Group</th>
+            <th>Rows</th>
+            <th>Match</th>
+            <th class="num">Largest distance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for group in duplicates.groups %}
+            <tr>
+              <td class="num">{{ group.number }}</td>
+              <td>{% for number in group.rows %}<a href="{% url 'detection:row' scoring.pk number %}">{{ number }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+              <td>{% if group.identical %}identical{% else %}<span class="status">differs in {{ group.differing }}</span>{% endif %}</td>
+              <td class="num">{{ group.score }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin-top:8px">
+      {% if duplicates.count > duplicates.groups|length %}Showing the first {{ duplicates.groups|length }} of {{ duplicates.count|thousands }} groups. {% endif %}
+      <a href="?show=duplicates#rows">Compare the duplicate rows in the table</a>
+    </p>
+  {% else %}
+    <p class="empty">No duplicates found.</p>
+  {% endif %}
+</section>
+
+<section class="card" id="rows">
+  <h2>Rows</h2>
+  <form method="get" action="#rows" class="filters">
+    <div class="field">
+      <label for="show">Show</label>
+      <select id="show" name="show">
+        {% for key, label in show_choices.items %}<option value="{{ key }}"{% if key == show %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="order">Order</label>
+      <select id="order" name="order">
+        {% for key, label in order_choices.items %}<option value="{{ key }}"{% if key == order %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit">Apply</button>
+    <span class="muted small">{{ table.count|thousands }} rows</span>
+  </form>
+  <div class="legend">
+    <span><span class="swatch cell-extreme">12.5</span>extreme value (Tukey or MAD)</span>
+    <span><span class="swatch cell-missing"></span>missing or unreadable</span>
+    <span><span class="swatch cell-unseen">value</span>category not seen in training</span>
+  </div>
+  {% if table.rows %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="num">Row</th>
+            <th class="num">Score</th>
+            <th>Label</th>
+            <th>Duplicate</th>
+            {% for column in table.columns %}<th>{{ column }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in table.rows %}
+            <tr>
+              <td class="num"><a href="{% url 'detection:row' scoring.pk row.number %}">{{ row.number }}</a></td>
+              <td class="num" title="Rank {{ row.rank }}">{{ row.score }}</td>
+              <td>{% if row.is_anomaly %}<span class="badge anomaly">Anomaly</span>{% else %}<span class="badge normal">normal</span>{% endif %}</td>
+              <td class="nowrap">{% if row.duplicate %}matches <a href="{% url 'detection:row' scoring.pk row.duplicate.closest %}">{{ row.duplicate.closest }}</a>
+                <span class="small muted">group {{ row.duplicate.group }}</span>{% endif %}</td>
+              {% for cell in row.cells %}<td class="value {{ cell.css }}"{% if cell.title %} title="{{ cell.title }}"{% endif %}>{{ cell.text }}</td>{% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if table.page.has_other_pages %}
+      <nav class="pagination" aria-label="Pages">
+        {% if table.page.has_previous %}<a href="?show={{ show }}&amp;order={{ order }}&amp;page={{ table.page.previous_page_number }}#rows">← Previous</a>{% endif %}
+        <span class="muted">Page {{ table.page.number }} of {{ table.page.paginator.num_pages }}</span>
+        {% if table.page.has_next %}<a href="?show={{ show }}&amp;order={{ order }}&amp;page={{ table.page.next_page_number }}#rows">Next →</a>{% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <p class="empty">No rows match this filter.</p>
+  {% endif %}
+</section>
+
+<details class="card">
+  <summary><strong>What AutoAD learned</strong></summary>
+  <dl class="facts" style="margin-top:12px">
+    <dt>Column types</dt>
+    <dd class="chips">{% for column, kind in column_types.items %}<span class="chip">{{ column }}: {{ kind }}</span>{% endfor %}</dd>
+    <dt>Dropped columns</dt>
+    <dd class="chips">{% for column, reason in dropped_columns.items %}<span class="chip">{{ column }}: {{ reason }}</span>{% empty %}none{% endfor %}</dd>
+    <dt>Ignored columns</dt>
+    <dd class="chips">{% for column in excluded_columns %}<span class="chip">{{ column }}</span>{% empty %}none{% endfor %}</dd>
+    <dt>Constant features removed</dt>
+    <dd class="chips">{% for feature in dropped_features %}<span class="chip">{{ feature }}</span>{% empty %}none{% endfor %}</dd>
+    <dt>Features for the detector ({{ features|length }})</dt>
+    <dd class="chips">{% for feature in features %}<span class="chip">{{ feature }}</span>{% endfor %}</dd>
+  </dl>
+</details>
+
+<details class="card">
+  <summary><strong>Repeat this analysis in Python</strong></summary>
+  <pre class="code"><code>{{ code }}</code></pre>
+</details>
+
+{% if not scoring.is_training %}
+  <form method="post" action="{% url 'detection:delete_scoring' scoring.pk %}" data-confirm="Delete this check of “{{ scoring.name }}”?">
+    {% csrf_token %}
+    <button type="submit" class="danger">Delete this check</button>
+  </form>
+{% endif %}
+{% endblock %}

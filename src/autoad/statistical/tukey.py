@@ -52,9 +52,7 @@ class TukeyTransformer(TransformerMixin, BaseEstimator):
             spread = high - low
             no_spread = ~(spread > 0)
             if self.fallback_quantiles is not None and no_spread.any():
-                fallback_low, fallback_high = np.nanquantile(
-                    values, list(self.fallback_quantiles), axis=0
-                )
+                fallback_low, fallback_high = np.nanquantile(values, list(self.fallback_quantiles), axis=0)
                 low = np.where(no_spread, fallback_low, low)
                 high = np.where(no_spread, fallback_high, high)
                 spread = high - low

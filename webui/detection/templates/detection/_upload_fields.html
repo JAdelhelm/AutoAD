@@ -1,0 +1,28 @@
+{% if form.non_field_errors %}<div class="errorlist nonfield">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+<div class="form-grid">
+  <div class="field">
+    <label for="{{ form.file.id_for_label }}">File</label>
+    {{ form.file }}
+    <div class="help">{{ form.file.help_text }} Up to {{ max_upload_mb }} MB.</div>
+    {{ form.file.errors }}
+  </div>
+  <div class="field">
+    <label for="{{ form.name.id_for_label }}">Name</label>
+    {{ form.name }}
+    <div class="help">{{ form.name.help_text }}</div>
+    {{ form.name.errors }}
+  </div>
+</div>
+<details class="options"{% if form.separator.errors or form.decimal.errors or form.encoding.errors or form.sheet.errors %} open{% endif %}>
+  <summary>File options</summary>
+  <div class="form-grid">
+    {% for field in form.option_fields %}
+      <div class="field">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        <div class="help">{{ field.help_text }}</div>
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+  </div>
+</details>

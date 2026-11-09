@@ -5,6 +5,7 @@ from __future__ import annotations
 from category_encoders import BinaryEncoder
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
+from sklearn.feature_selection import VarianceThreshold
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
@@ -29,8 +30,7 @@ def make_scaler(scaler):
     if isinstance(scaler, str):
         if scaler not in SCALERS:
             raise ValueError(
-                f"Unknown scaler {scaler!r}. Use one of {sorted(SCALERS)}, None "
-                "or a scikit-learn transformer."
+                f"Unknown scaler {scaler!r}. Use one of {sorted(SCALERS)}, None or a scikit-learn transformer."
             )
         return SCALERS[scaler]()
     if hasattr(scaler, "fit") and hasattr(scaler, "transform"):
@@ -84,23 +84,23 @@ def build_preprocessor(
     missing_indicator,
     scaler,
     n_jobs,
+    drop_constant_features: bool = True,
 ) -> Pipeline:
     """Build the unfitted pipeline that turns typed columns into the scaled feature matrix.
 
     ``groups`` maps every name in :data:`GROUPS` to a list of columns. Missing values
     are marked on the raw columns, in parallel to (and therefore before) imputation.
+    With ``drop_constant_features``, features without variance in the training data are
+    removed before scaling (step ``"drop_constant"``): they carry no information for a
+    detector, and some detectors (PyOD's PCA) return infinite scores for them.
     """
     transformers = []
     if groups["numeric"]:
-        transformers.append(
-            ("numeric", _numeric_pipeline(tukey_factor, mad_threshold), groups["numeric"])
-        )
+        transformers.append(("numeric", _numeric_pipeline(tukey_factor, mad_threshold), groups["numeric"]))
     if groups["bool"]:
         transformers.append(("bool", _most_frequent(), groups["bool"]))
     if groups["binary"]:
-        binary = Pipeline(
-            [("impute", _most_frequent()), ("encode", BinaryEncoder(handle_unknown="indicator"))]
-        )
+        binary = Pipeline([("impute", _most_frequent()), ("encode", BinaryEncoder(handle_unknown="indicator"))])
         transformers.append(("binary", binary, groups["binary"]))
     if groups["frequency"]:
         frequency = Pipeline([("impute", _most_frequent()), ("encode", FrequencyEncoder())])
@@ -117,8 +117,7 @@ def build_preprocessor(
         columns = [col for group in GROUPS for col in groups[group]]
         transformers.append(("missing", MissingValueMarker(mode=missing_indicator), columns))
 
-    features = ColumnTransformer(
-        transformers, remainder="drop", verbose_feature_names_out=False, n_jobs=n_jobs
-    )
-    pipeline = Pipeline([("features", features), ("scale", make_scaler(scaler))])
+    features = ColumnTransformer(transformers, remainder="drop", verbose_feature_names_out=False, n_jobs=n_jobs)
+    drop_constant = VarianceThreshold(threshold=0.0) if drop_constant_features else "passthrough"
+    pipeline = Pipeline([("features", features), ("drop_constant", drop_constant), ("scale", make_scaler(scaler))])
     return pipeline.set_output(transform="pandas")

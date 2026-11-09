@@ -22,8 +22,7 @@ def employees_with_anomalies():
             "salary": rng.normal(60_000, 8_000, n).round(2),
             "tenure": rng.integers(0, 20, n),
             "department": rng.choice(["HR", "Engineering", "Finance", "Sales"], n),
-            "hired": pd.Timestamp("2015-01-01")
-            + pd.to_timedelta(rng.integers(0, 3000, n), unit="D"),
+            "hired": pd.Timestamp("2015-01-01") + pd.to_timedelta(rng.integers(0, 3000, n), unit="D"),
         }
     )
     X.loc[10, "salary"] = 900_000
@@ -39,9 +38,7 @@ def employees_with_anomalies():
     ids=["IForest", "LOF", "KNN"],
 )
 def test_injected_anomalies_get_the_highest_scores(employees_with_anomalies, detector):
-    scores = (
-        AutoAD(detector).fit(employees_with_anomalies).decision_function(employees_with_anomalies)
-    )
+    scores = AutoAD(detector).fit(employees_with_anomalies).decision_function(employees_with_anomalies)
     # Top 2 % of 300 rows. The random data has one natural outlier as well (row 178,
     # salary almost 4 standard deviations below the mean), so allow a little room.
     top = set(np.argsort(scores)[::-1][:6])

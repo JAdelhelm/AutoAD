@@ -84,10 +84,7 @@ def test_importing_autoad_does_not_silence_warnings():
     # Regression: the old TypeInferenceTransformer called warnings.filterwarnings("ignore").
     import autoad  # noqa: F401
 
-    assert not any(
-        f[0] == "ignore" and f[1] is None and f[2] is Warning and f[3] is None
-        for f in warnings.filters
-    )
+    assert not any(f[0] == "ignore" and f[1] is None and f[2] is Warning and f[3] is None for f in warnings.filters)
 
 
 def test_date_encoder_adds_time_units_only_when_present():

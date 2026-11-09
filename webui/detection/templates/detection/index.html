@@ -1,0 +1,74 @@
+{% extends "detection/base.html" %}
+{% load detection_extras %}
+{% block title %}Analyses{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Find anomalies in a table</h1>
+    <p class="sub">Upload a file, check how AutoAD reads its columns, run a detector and inspect the unusual rows.
+      Later you can check new files against the same model.</p>
+  </div>
+</div>
+
+<section class="card">
+  <h2>New analysis</h2>
+  <p class="sub">The file is read right away, so problems show up here. Use data you consider mostly normal: AutoAD
+    learns from it what normal looks like.</p>
+  <form method="post" enctype="multipart/form-data" data-busy="Reading the file…">
+    {% csrf_token %}
+    {% include "detection/_upload_fields.html" %}
+    <div class="actions" style="margin-top:16px">
+      <button type="submit" class="primary">Upload and continue</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Analyses</h2>
+  {% if analyses %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>File</th>
+            <th class="num">Rows</th>
+            <th class="num">Columns</th>
+            <th>Detector</th>
+            <th class="num">Anomalies</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in analyses %}{% with analysis=item.analysis %}
+            <tr>
+              <td><a href="{% url 'detection:analysis' analysis.pk %}">{{ analysis.name }}</a></td>
+              <td class="muted">{{ analysis.file_name }}</td>
+              <td class="num">{{ analysis.n_rows|thousands }}</td>
+              <td class="num">{{ analysis.n_columns }}</td>
+              <td>{{ item.detector|default:"—" }}</td>
+              <td class="num">
+                {% if item.training %}{{ item.training.n_anomalies|thousands }}
+                  <span class="muted">({{ item.training.anomaly_share|percent }})</span>
+                {% else %}<a href="{% url 'detection:configure' analysis.pk %}">not run yet</a>{% endif %}
+              </td>
+              <td class="nowrap muted">{{ analysis.created_at|date:"Y-m-d H:i" }}</td>
+              <td>
+                <form method="post" action="{% url 'detection:delete_analysis' analysis.pk %}"
+                      data-confirm="Delete “{{ analysis.name }}” with its files and results?">
+                  {% csrf_token %}
+                  <button type="submit" class="link-button">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endwith %}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty">No analyses yet. Upload a file to start, for example <code>examples/X_train.csv</code> from
+      the repository.</p>
+  {% endif %}
+</section>
+{% endblock %}

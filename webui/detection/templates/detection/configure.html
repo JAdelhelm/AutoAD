@@ -1,0 +1,130 @@
+{% extends "detection/base.html" %}
+{% load detection_extras %}
+{% block title %}Configure {{ analysis.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ analysis.name }}</h1>
+    <p class="sub">{{ analysis.file_name }} · {{ analysis.n_rows|thousands }} rows · {{ analysis.n_columns }} columns</p>
+  </div>
+  {% if analysis.is_fitted %}
+    <div class="actions"><a class="button" href="{% url 'detection:analysis' analysis.pk %}">Back to results</a></div>
+  {% endif %}
+</div>
+
+<form method="post" data-busy="Running AutoAD…">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="errorlist nonfield">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+
+  <section class="card">
+    <h2>Columns</h2>
+    <p class="sub">AutoAD learns a type for every column. Override it where the guess is wrong, or ignore columns
+      that should not count, such as free-text comments. Constant and ID-like columns are dropped automatically;
+      the results list them.</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Column</th>
+            <th>Detected type</th>
+            <th class="num">Distinct</th>
+            <th class="num">Missing</th>
+            <th>Examples</th>
+            <th>Use as</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for info, field in columns %}
+            <tr>
+              <td><label for="{{ field.id_for_label }}">{{ info.name }}</label></td>
+              <td>{{ info.type }}</td>
+              <td class="num">{{ info.distinct|thousands }}</td>
+              <td class="num">{{ info.missing|percent }}</td>
+              <td class="value muted" title="{{ info.examples }}">{{ info.examples }}</td>
+              <td>{{ field }}{{ field.errors }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin-top:8px">Types are a preview from up to 5,000 rows; the run uses all rows.</p>
+  </section>
+
+  <section class="card">
+    <h2>Detector</h2>
+    <p class="sub">The detector turns AutoAD's feature matrix into an anomaly score per row.
+      Isolation Forest is a robust start and also shows which features it used.</p>
+    <div class="form-grid">
+      {% for field in form.detector_fields %}
+        <div class="field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+          {{ field.errors }}
+        </div>
+      {% endfor %}
+    </div>
+
+    <details class="options"{% for field in form.advanced_fields %}{% if field.errors %} open{% endif %}{% endfor %}>
+      <summary>Advanced AutoAD settings</summary>
+      <div class="form-grid">
+        {% for field in form.advanced_fields %}
+          <div class="field{% if field.field.widget.input_type == 'checkbox' %} check{% endif %}">
+            {% if field.field.widget.input_type == 'checkbox' %}
+              <label>{{ field }} {{ field.label }}</label>
+            {% else %}
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+            {% endif %}
+            {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+            {{ field.errors }}
+          </div>
+        {% endfor %}
+      </div>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>Duplicates</h2>
+    <p class="sub">A KNN with 2 neighbours scores every row against the others: each row is its own first
+      neighbour, so the score is the distance to the closest other row, and a low score marks a duplicate.
+      ID-like, constant and ignored columns are not compared, so rows that differ only in an order number count
+      as duplicates.</p>
+    {% with field=form.duplicate_tolerance %}
+      <div class="form-grid">
+        <div class="field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {{ field.errors }}
+        </div>
+      </div>
+      <div class="help small muted" style="margin-top:4px">{{ field.help_text }}</div>
+    {% endwith %}
+
+    <div class="actions" style="margin-top:16px">
+      <button type="submit" class="primary">Run detection</button>
+      {% if analysis.n_rows > max_train_rows %}
+        <span class="small muted">The model is fitted on a random sample of {{ max_train_rows|thousands }} rows; all
+          rows are scored.</span>
+      {% endif %}
+      {% if has_checks %}
+        <span class="small muted">Running again replaces the results, including the checks of new data.</span>
+      {% endif %}
+    </div>
+  </section>
+</form>
+
+<details class="card">
+  <summary><strong>First rows of the file</strong></summary>
+  <div class="table-scroll" style="margin-top:12px">
+    <table>
+      <thead><tr>{% for column in preview_columns %}<th>{{ column }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for row in preview_rows %}
+          <tr>{% for value in row %}<td class="value" title="{{ value }}">{{ value }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endblock %}

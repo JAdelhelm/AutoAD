@@ -54,9 +54,7 @@ class DateEncoder(TransformerMixin, BaseEstimator):
         for i in range(frame.shape[1]):
             if self.include_time == "auto":
                 parsed = to_datetime(frame.iloc[:, i]).dropna().dt
-                has_time = bool(
-                    ((parsed.hour != 0) | (parsed.minute != 0) | (parsed.second != 0)).any()
-                )
+                has_time = bool(((parsed.hour != 0) | (parsed.minute != 0) | (parsed.second != 0)).any())
             else:
                 has_time = bool(self.include_time)
             self.units_.append(DATE_UNITS + TIME_UNITS if has_time else DATE_UNITS)
@@ -79,10 +77,6 @@ class DateEncoder(TransformerMixin, BaseEstimator):
         check_is_fitted(self, "units_")
         names = _check_feature_names_in(self, input_features)
         return np.asarray(
-            [
-                f"{name}_{unit}"
-                for name, units in zip(names, self.units_, strict=True)
-                for unit in units
-            ],
+            [f"{name}_{unit}" for name, units in zip(names, self.units_, strict=True) for unit in units],
             dtype=object,
         )
