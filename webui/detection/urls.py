@@ -6,6 +6,7 @@ app_name = "detection"
 
 urlpatterns = [
     path("", views.index, name="index"),
+    path("examples/<slug:key>/", views.load_example, name="example"),
     path("analyses/<uuid:pk>/", views.analysis_detail, name="analysis"),
     path("analyses/<uuid:pk>/configure/", views.configure, name="configure"),
     path("analyses/<uuid:pk>/check/", views.check, name="check"),

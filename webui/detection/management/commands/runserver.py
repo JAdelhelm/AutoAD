@@ -1,4 +1,4 @@
-"""``runserver`` on port 8080 by default.
+"""``runserver`` on port 8090 by default.
 
 Django's default port 8000 is often taken, for example by an editor such as Cursor or VS
 Code on Windows, where Django then misleadingly reports "You don't have permission to
@@ -13,4 +13,4 @@ from django.contrib.staticfiles.management.commands.runserver import Command as 
 
 class Command(StaticFilesRunserver):
     # Subclasses the staticfiles version, so static files are still served in development.
-    default_port = os.environ.get("AUTOAD_WEB_PORT", "8080")
+    default_port = os.environ.get("AUTOAD_WEB_PORT", "8090")

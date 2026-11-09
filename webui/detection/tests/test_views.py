@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from detection.models import Analysis, Scoring
+from detection.services.examples import EXAMPLES
 
 from .helpers import ANOMALY_ROWS, DUPLICATE_ROWS, TemporaryMediaMixin, configure_data, csv_bytes, make_frame
 
@@ -176,6 +177,79 @@ class WorkflowTests(TemporaryMediaMixin, TestCase):
         self.assertRedirects(response, reverse("detection:configure", args=[analysis.pk]))
 
 
+class ExampleTests(TemporaryMediaMixin, TestCase):
+    def run_example(self, key: str) -> Scoring:
+        response = self.client.post(reverse("detection:example", args=[key]))
+        analysis = Analysis.objects.get()
+        self.assertRedirects(response, reverse("detection:configure", args=[analysis.pk]))
+        page = self.client.get(reverse("detection:configure", args=[analysis.pk]))
+        # The example's presets are the initial values of the configure form.
+        contamination = page.context["form"]["contamination"].value()
+        self.client.post(
+            reverse("detection:configure", args=[analysis.pk]),
+            configure_data(analysis.n_columns, contamination=str(contamination)),
+        )
+        return analysis.scorings.get(is_training=True)
+
+    def test_index_offers_the_examples(self):
+        response = self.client.get(reverse("detection:index"))
+        for example in EXAMPLES.values():
+            self.assertContains(response, example.title)
+            self.assertContains(response, reverse("detection:example", args=[example.key]))
+
+    def test_examples_are_reproducible(self):
+        for example in EXAMPLES.values():
+            self.assertEqual(example.training_csv(), example.training_csv())
+            self.assertNotEqual(example.training_csv(), example.check_csv())
+
+    def test_every_example_runs_and_its_new_data_can_be_checked(self):
+        for key, example in EXAMPLES.items():
+            with self.subTest(example=key):
+                Analysis.objects.all().delete()
+                training = self.run_example(key)
+                analysis = training.analysis
+                self.assertEqual(analysis.name, f"Example: {example.title}")
+                self.assertGreater(training.n_anomalies, 0)
+                self.assertGreater(training.summary["rows_extreme"], 0)
+                self.assertGreater(training.summary["rows_missing"], 0)
+
+                page = self.client.get(reverse("detection:check", args=[analysis.pk]))
+                self.assertContains(page, "Check the example data")
+                response = self.client.post(reverse("detection:check", args=[analysis.pk]), {"example": "1"})
+                check = analysis.scorings.get(is_training=False)
+                self.assertRedirects(response, reverse("detection:scoring", args=[check.pk]))
+                self.assertEqual(check.file_name, example.check_file_name)
+                self.assertGreater(check.summary["rows_unseen"], 0)
+                self.assertEqual(self.client.get(reverse("detection:download", args=[check.pk])).status_code, 200)
+
+    def test_orders_example_contains_a_duplicate(self):
+        self.assertEqual(self.run_example("orders").summary["duplicate_groups"], 1)
+
+    def test_unknown_example_and_get_are_rejected(self):
+        self.assertEqual(self.client.post(reverse("detection:example", args=["nope"])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("detection:example", args=["orders"])).status_code, 405)
+        self.assertFalse(Analysis.objects.exists())
+
+    def test_uploaded_analysis_gets_no_example_button(self):
+        frame = make_frame()
+        self.client.post(
+            reverse("detection:index"),
+            {
+                "file": SimpleUploadedFile("orders.csv", csv_bytes(frame)),
+                "separator": "auto",
+                "decimal": "auto",
+                "encoding": "auto",
+            },
+        )
+        analysis = Analysis.objects.get()
+        self.client.post(reverse("detection:configure", args=[analysis.pk]), configure_data(frame.shape[1]))
+        page = self.client.get(reverse("detection:check", args=[analysis.pk]))
+        self.assertNotContains(page, "Check the example data")
+        response = self.client.post(reverse("detection:check", args=[analysis.pk]), {"example": "1"})
+        self.assertEqual(response.status_code, 200)  # treated as an upload without a file
+        self.assertFalse(analysis.scorings.filter(is_training=False).exists())
+
+
 class AssetTests(TestCase):
     def test_plotly_is_served_from_the_installed_package(self):
         response = self.client.get(reverse("detection:plotly_js"))
@@ -183,13 +257,13 @@ class AssetTests(TestCase):
         self.assertIn("max-age", response["Cache-Control"])
         self.assertIn(b"plotly", b"".join(response.streaming_content)[:2000].lower())
 
-    def test_runserver_defaults_to_port_8080_and_serves_static_files(self):
+    def test_runserver_defaults_to_port_8090_and_serves_static_files(self):
         from django.contrib.staticfiles.management.commands.runserver import Command as StaticFilesRunserver
         from django.core.management import get_commands, load_command_class
 
         self.assertEqual(get_commands()["runserver"], "detection")
         command = load_command_class("detection", "runserver")
-        self.assertEqual(command.default_port, os.environ.get("AUTOAD_WEB_PORT", "8080"))
+        self.assertEqual(command.default_port, os.environ.get("AUTOAD_WEB_PORT", "8090"))
         self.assertIsInstance(command, StaticFilesRunserver)
 
     def test_own_static_files_exist(self):

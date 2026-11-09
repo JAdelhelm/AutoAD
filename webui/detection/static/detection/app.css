@@ -89,6 +89,18 @@ main.wrap { padding-top: 24px; padding-bottom: 64px; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .grid-2 > .card { margin-bottom: 0; }
 .stack { margin-bottom: 16px; }
+.examples { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.example {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.example p { margin: 0; font-size: 0.9rem; }
+.example button { align-self: flex-start; margin-top: auto; }
 @media (max-width: 900px) { .grid-2 { grid-template-columns: minmax(0, 1fr); } }
 
 .muted { color: var(--muted); }

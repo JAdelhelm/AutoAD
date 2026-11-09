@@ -9,7 +9,7 @@ Environment variables:
 ``AUTOAD_WEB_DATA_DIR``
     Data directory, default ``webui/data``.
 ``AUTOAD_WEB_PORT``
-    Default port of ``manage.py runserver``, default 8080 (see
+    Default port of ``manage.py runserver``, default 8090 (see
     ``detection/management/commands/runserver.py``).
 ``AUTOAD_WEB_DEBUG``
     ``1`` (default) or ``0``. With ``0``, static files must be served by a web server
@@ -68,7 +68,7 @@ ALLOWED_HOSTS = [
 
 INSTALLED_APPS = [
     "django.contrib.messages",
-    # Before staticfiles, so its runserver command (default port 8080) takes precedence.
+    # Before staticfiles, so its runserver command (default port 8090) takes precedence.
     "detection",
     "django.contrib.staticfiles",
 ]

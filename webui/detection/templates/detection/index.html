@@ -24,6 +24,24 @@
 </section>
 
 <section class="card">
+  <h2>Examples</h2>
+  <p class="sub">No file at hand? Start with a generated table. Each has a few planted problems, and a second
+    table with new ones that you can check against the model afterwards.</p>
+  <div class="examples">
+    {% for example in examples %}
+      <form method="post" action="{% url 'detection:example' example.key %}" class="example"
+            data-busy="Loading…">
+        {% csrf_token %}
+        <h3>{{ example.title }}</h3>
+        <p>{{ example.description }}</p>
+        <p class="muted small">{{ example.look_for }}</p>
+        <button type="submit">Use this example</button>
+      </form>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card">
   <h2>Analyses</h2>
   {% if analyses %}
     <div class="table-scroll">
@@ -67,8 +85,7 @@
       </table>
     </div>
   {% else %}
-    <p class="empty">No analyses yet. Upload a file to start, for example <code>examples/X_train.csv</code> from
-      the repository.</p>
+    <p class="empty">No analyses yet. Upload a file or pick one of the examples to start.</p>
   {% endif %}
 </section>
 {% endblock %}

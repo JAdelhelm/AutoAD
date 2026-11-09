@@ -16,13 +16,13 @@ python webui/manage.py migrate
 python webui/manage.py runserver
 ```
 
-Open http://127.0.0.1:8080. To try it, upload `examples/X_train.csv` and later check
+Open http://127.0.0.1:8090. To try it, upload `examples/X_train.csv` and later check
 `examples/X_test.csv` against it.
 
-`runserver` uses port 8080 here instead of Django's 8000, which editors such as Cursor
-or VS Code often occupy. If 8080 is taken too (on Windows Django then says "You don't
+`runserver` uses port 8090 here instead of Django's 8000, which editors such as Cursor
+or VS Code often occupy. If 8090 is taken too (on Windows Django then says "You don't
 have permission to access that port"), pass another port, e.g.
-`python webui/manage.py runserver 8090`, or set `AUTOAD_WEB_PORT`.
+`python webui/manage.py runserver 9000`, or set `AUTOAD_WEB_PORT`.
 
 ## Workflow
 
@@ -67,7 +67,7 @@ Everything is configured through environment variables (see `autoad_web/settings
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `AUTOAD_WEB_PORT` | `8080` | Default port of `manage.py runserver` |
+| `AUTOAD_WEB_PORT` | `8090` | Default port of `manage.py runserver` |
 | `AUTOAD_WEB_DATA_DIR` | `webui/data` | Database, uploads, fitted models and results |
 | `AUTOAD_WEB_MAX_UPLOAD_MB` | `100` | Largest accepted file |
 | `AUTOAD_WEB_MAX_TRAIN_ROWS` | `50000` | Larger files are fitted on a random sample of this many rows; all rows are scored |

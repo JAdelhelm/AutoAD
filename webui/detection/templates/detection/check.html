@@ -9,7 +9,20 @@
   </div>
   <div class="actions"><a class="button" href="{% url 'detection:analysis' analysis.pk %}">Back to results</a></div>
 </div>
+{% if example %}
 <section class="card">
+  <h2>Example data</h2>
+  <p class="sub">This analysis uses the example “{{ example.title }}”. Its second table
+    (<code>{{ example.check_file_name }}</code>) has the same columns and new problems, among them a value the
+    model has never seen.</p>
+  <form method="post" data-busy="Checking…">
+    {% csrf_token %}
+    <button type="submit" name="example" value="1" class="primary">Check the example data</button>
+  </form>
+</section>
+{% endif %}
+<section class="card">
+  {% if example %}<h2>Your own file</h2>{% endif %}
   <form method="post" enctype="multipart/form-data" data-busy="Checking…">
     {% csrf_token %}
     {% include "detection/_upload_fields.html" %}

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
+from django.core.files.base import ContentFile
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -18,6 +19,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from .forms import ConfigureForm, TableUploadForm
 from .models import Analysis, Scoring
 from .services import charts, tables
+from .services import examples as example_data
 from .services.code import python_snippet
 from .services.readers import ReadError, read_table
 from .services.runner import DETECTORS, AnalysisError, check_new_data, fit_analysis, load_model, load_result
@@ -99,8 +101,35 @@ def index(request):
     return render(
         request,
         "detection/index.html",
-        {"form": form, "analyses": analyses, "max_upload_mb": settings.AUTOAD_WEB_MAX_UPLOAD_MB},
+        {
+            "form": form,
+            "analyses": analyses,
+            "examples": example_data.EXAMPLES.values(),
+            "max_upload_mb": settings.AUTOAD_WEB_MAX_UPLOAD_MB,
+        },
     )
+
+
+@require_POST
+def load_example(request, key):
+    """Start an analysis from a built-in example, as if its CSV file had been uploaded."""
+    example = example_data.EXAMPLES.get(key)
+    if example is None:
+        raise Http404("No such example.")
+    data = example.training_csv()
+    frame, read_options = read_table(data, example.file_name)
+    analysis = Analysis(
+        name=f"Example: {example.title}",
+        file_name=example.file_name,
+        read_options=read_options,
+        n_rows=frame.shape[0],
+        n_columns=frame.shape[1],
+        # Only presets of the configure form; the analysis is not fitted yet.
+        settings=dict(example.settings),
+    )
+    analysis.data_file.save(example.file_name, ContentFile(data), save=False)
+    analysis.save()
+    return redirect("detection:configure", pk=analysis.pk)
 
 
 @require_http_methods(["GET", "POST"])
@@ -261,6 +290,24 @@ def check(request, pk):
     analysis = get_object_or_404(Analysis, pk=pk)
     if not analysis.is_fitted:
         return redirect("detection:configure", pk=analysis.pk)
+    example = example_data.for_file_name(analysis.file_name)
+    if request.method == "POST" and example is not None and "example" in request.POST:
+        # The second table of the example instead of an upload.
+        data = example.check_csv()
+        frame, read_options = read_table(data, example.check_file_name)
+        try:
+            scoring = check_new_data(
+                analysis,
+                frame,
+                upload=ContentFile(data, name=example.check_file_name),
+                name="Example: new data",
+                read_options=read_options,
+            )
+        except AnalysisError as error:
+            # E.g. the columns were changed on the configure page in a way the table does not fit.
+            messages.error(request, f"The example data cannot be checked: {error}")
+            return redirect("detection:check", pk=analysis.pk)
+        return redirect("detection:scoring", pk=scoring.pk)
     if request.method == "POST":
         form = TableUploadForm(request.POST, request.FILES)
         if form.is_valid():
@@ -281,7 +328,12 @@ def check(request, pk):
     return render(
         request,
         "detection/check.html",
-        {"analysis": analysis, "form": form, "max_upload_mb": settings.AUTOAD_WEB_MAX_UPLOAD_MB},
+        {
+            "analysis": analysis,
+            "form": form,
+            "example": example,
+            "max_upload_mb": settings.AUTOAD_WEB_MAX_UPLOAD_MB,
+        },
     )
 
 
