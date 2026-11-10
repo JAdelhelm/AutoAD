@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- On Windows 11, KNN-based steps (such as `duplicates()`) printed "Could not find the
+  number of physical cores" with a traceback, because joblib before 1.5 calls the
+  removed `wmic` tool. AutoAD now requires `joblib>=1.5`.
+
 ### Added
 
 - `ScoreEnsemble`, a detector that averages the standardised scores of several PyOD

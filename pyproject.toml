@@ -30,6 +30,8 @@ dependencies = [
     "scikit-learn>=1.5.2",
     "pyod>=2.0.2",
     "category-encoders>=2.6.4",
+    # Older versions call the removed "wmic" on Windows 11 and print a warning with a traceback.
+    "joblib>=1.5",
 ]
 
 [project.optional-dependencies]
