@@ -1,7 +1,6 @@
-<a href="docs/img/webui_results.png"><img src="docs/img/webui_results.png" align="right" width="44%" alt="Results page of the AutoAD web interface: stat tiles, anomaly score per row, score distribution and map of rows"></a>
-
 # AutoAD
 
+<a href="docs/img/webui_results.png"><img src="docs/img/webui_results.png" align="right" width="44%" alt="Results page of the AutoAD web interface: stat tiles, anomaly score per row, score distribution and map of rows"></a>
 **Anomaly detection for mixed-type tables, without the preprocessing work.**
 
 [![CI](https://github.com/JAdelhelm/AutoAD/actions/workflows/ci.yml/badge.svg)](https://github.com/JAdelhelm/AutoAD/actions/workflows/ci.yml)
