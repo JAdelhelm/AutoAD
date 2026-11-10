@@ -26,7 +26,7 @@ The report then tells you which rows are unusual, and why.
 
 <br clear="both">
 
-[Quick start](#quick-start) · [Installation](#installation) · [Web interface](#web-interface) · [Output](#output) · [Parameters](#parameters) · [How it works](#how-it-works) · [Limitations](#limitations)
+[Quick start](#quick-start) · [Installation](#installation) · [Web interface](#web-interface) · [Output](#output) · [Parameters](#parameters) · [The ensemble](#the-ensemble) · [How it works](#how-it-works) · [Limitations](#limitations)
 
 > **Status:** 0.x, the API may still change. See the [changelog](CHANGELOG.md).
 
@@ -72,7 +72,8 @@ duplicates = ad.duplicates(X_test)     # rows that duplicate another row
 ```
 
 Any PyOD detector works. With only ten training rows the example uses LOF with 3
-neighbours; on real data `IForest` is a good start.
+neighbours; on real data `IForest` or [`detector="ensemble"`](#the-ensemble) is a good
+start.
 [`examples/main.py`](examples/main.py) is this example as a script, and
 [`examples/examples.ipynb`](examples/examples.ipynb) walks through twelve typical tasks
 on synthetic data (`pip install -e ".[examples]"`).
@@ -198,7 +199,7 @@ no missing values, or `MAD_Total` if no training value is flagged. Feature names
 
 | Parameter | Default | Description |
 | --- | --- | --- |
-| `detector` | `None` | Unfitted PyOD detector. Without one, AutoAD only builds the feature matrix. |
+| `detector` | `None` | Unfitted PyOD detector, or `"ensemble"` (see [below](#the-ensemble)). Without one, AutoAD only builds the feature matrix. |
 | `datetime_columns` | `None` | Columns to parse as dates. Other text columns become dates only if at least 95 % of their values are dates. |
 | `numerical_columns` | `None` | Columns to treat as numbers although they are stored as text. |
 | `exclude_columns` | `None` | Columns to ignore. They may be missing in later inputs. |
@@ -213,6 +214,36 @@ no missing values, or `MAD_Total` if no training value is flagged. Feature names
 
 `AutoAD` is a scikit-learn estimator: `get_params`, `set_params` and `clone` work, and
 `fit` returns the estimator itself.
+
+## The ensemble
+
+Without labels you cannot tell which detector suits your table, and every detector
+fails on some data. `detector="ensemble"` averages three detectors that work in
+different ways: Isolation Forest, ECOD and KNN.
+
+```python
+from pyod.models.hbos import HBOS
+from pyod.models.iforest import IForest
+
+from autoad import AutoAD, ScoreEnsemble
+
+ad = AutoAD(detector="ensemble").fit(X_train)  # short for ScoreEnsemble(random_state=0)
+
+# or choose the members and the share of rows to label as anomalies yourself
+ensemble = ScoreEnsemble([IForest(random_state=0), HBOS()], contamination=0.02)
+ad = AutoAD(detector=ensemble).fit(X_train)
+```
+
+The scores of each detector are standardised with the mean and standard deviation of
+its training scores and then averaged. `ScoreEnsemble` behaves like a PyOD detector
+(`decision_function`, `predict`, `threshold_`, `labels_`), so everything else works as
+before. It has no `feature_importances`.
+
+On the 47 datasets of ADBench the ensemble had the highest mean AUC-ROC of all tested
+detectors (0.779, Isolation Forest 0.769), a small and not significant lead. Its real
+advantage is that it avoids bad surprises: on one dataset KNN alone reached an AUC-ROC
+of 0.001, the ensemble 0.995. It costs the time of three detectors. (One-off
+evaluation with 3 splits per dataset; the benchmark is not part of this repository.)
 
 ## How it works
 
@@ -261,8 +292,10 @@ are not part of the current version.
 
 - Tukey and MAD look at one numeric column at a time. Unusual combinations of normal
   values are left to the detector.
-- The detector decides the quality of `AD_score`. The repository contains no benchmark,
-  so compare detectors on your own data.
+- The detector decides the quality of `AD_score`, so compare detectors on your own
+  data, or use the [ensemble](#the-ensemble). On the purely numeric datasets of
+  ADBench, AutoAD's preprocessing made no reliable difference compared with plain
+  scaling.
 - Binary codes are not ordinal: the distance between two categories says nothing about
   their similarity.
 - Rows are treated as independent. There is no sequence or time series model; dates are

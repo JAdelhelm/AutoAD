@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `ScoreEnsemble`, a detector that averages the standardised scores of several PyOD
+  detectors (by default Isolation Forest, ECOD and KNN). `AutoAD(detector="ensemble")`
+  is the short form. The web interface offers it as a detector.
+
 ## 0.2.0 - 2026-11-10
 
 A rewrite that fixes wrong results and turns AutoAD into a scikit-learn estimator.

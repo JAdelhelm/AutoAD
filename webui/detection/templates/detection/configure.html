@@ -53,7 +53,8 @@
   <section class="card">
     <h2>Detector</h2>
     <p class="sub">The detector turns AutoAD's feature matrix into an anomaly score per row.
-      Isolation Forest is a robust start and also shows which features it used.</p>
+      Isolation Forest is a robust start and also shows which features it used. The ensemble averages
+      three detectors and is less likely to miss a kind of anomaly that one of them cannot see.</p>
     <div class="form-grid">
       {% for field in form.detector_fields %}
         <div class="field">

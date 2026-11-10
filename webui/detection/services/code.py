@@ -18,11 +18,13 @@ def python_snippet(analysis, model: dict) -> str:
         if value != defaults[key]:
             arguments.append(f"    {key}={value!r},")
 
+    if spec["module"] == "autoad":
+        imports = ["", f"from autoad import AutoAD, {spec['class']}"]
+    else:
+        imports = [f"from {spec['module']} import {spec['class']}", "", "from autoad import AutoAD"]
     lines = [
         "import pandas as pd",
-        f"from {spec['module']} import {spec['class']}",
-        "",
-        "from autoad import AutoAD",
+        *imports,
         "",
         f"X = {pandas_read_call(analysis.file_name, analysis.read_options)}",
     ]

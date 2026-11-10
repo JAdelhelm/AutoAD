@@ -45,3 +45,6 @@ tutorial_pypi.txt
 
 # Database, uploads and results of the web interface
 /webui/data/
+
+# Local benchmarks (scripts, downloaded datasets and results)
+/benchmarks/

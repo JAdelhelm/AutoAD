@@ -12,6 +12,7 @@ from pyod.models.knn import KNN
 from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.utils.validation import check_is_fitted
 
+from autoad.ensemble import ScoreEnsemble
 from autoad.pipeline import GROUPS, build_preprocessor
 from autoad.preprocessing.type_inference import (
     CATEGORICAL,
@@ -54,9 +55,11 @@ class AutoAD(TransformerMixin, BaseEstimator):
 
     Parameters
     ----------
-    detector : PyOD detector, optional
+    detector : PyOD detector or "ensemble", optional
         Unfitted detector, e.g. ``pyod.models.iforest.IForest()``. It is cloned
-        during ``fit``. Without a detector AutoAD only builds the feature matrix.
+        during ``fit``. ``"ensemble"`` is short for
+        ``autoad.ScoreEnsemble(random_state=0)``, the mean score of Isolation Forest,
+        ECOD and KNN. Without a detector AutoAD only builds the feature matrix.
     datetime_columns : list of str, optional
         Columns to parse as dates. Other text columns are parsed as dates only if
         at least 95 % of their values are recognised as dates.
@@ -199,7 +202,7 @@ class AutoAD(TransformerMixin, BaseEstimator):
 
         self.detector_ = None
         if self.detector is not None:
-            self.detector_ = _clone_detector(self.detector).fit(features.to_numpy())
+            self.detector_ = _new_detector(self.detector).fit(features.to_numpy())
 
         logger.info("AutoAD column types: %s", self.column_types_)
         if self.dropped_columns_:
@@ -469,6 +472,14 @@ class AutoAD(TransformerMixin, BaseEstimator):
             values = np.asarray(detector.transform(imputed))
             flags[method] = pd.DataFrame(values, index=typed.index, columns=numeric)
         return flags
+
+
+def _new_detector(detector):
+    if isinstance(detector, str):
+        if detector != "ensemble":
+            raise ValueError(f'Unknown detector {detector!r}. Pass a PyOD detector or "ensemble".')
+        return ScoreEnsemble(random_state=0)
+    return _clone_detector(detector)
 
 
 def _clone_detector(detector):

@@ -32,7 +32,8 @@ have permission to access that port"), pass another port, e.g.
    You can set all three yourself under *File options*.
 2. **Configure**: AutoAD shows the type it detected for each column. Set a column to
    *Number*, *Date* or *Ignore* if needed, choose the detector (Isolation Forest, ECOD,
-   KNN or LOF) and the contamination, and adjust AutoAD's settings under *Advanced*.
+   KNN, LOF or the ensemble of the first three) and the contamination, and adjust
+   AutoAD's settings under *Advanced*.
 3. **Results** of the training data:
    - figures: the number of anomalies, rows with extreme values and rows with missing
      values;

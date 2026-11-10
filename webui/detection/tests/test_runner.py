@@ -54,6 +54,16 @@ class FitAnalysisTests(TemporaryMediaMixin, TestCase):
         self.assertGreaterEqual(scoring.summary["rows_extreme"], 2)
         self.assertEqual(scoring.summary["rows_unseen"], 0)
 
+    def test_ensemble_finds_the_injected_anomalies(self):
+        scoring = fit_analysis(self.analysis, self.frame, settings_with(detector="ensemble"))
+        result = load_result(scoring)
+        top = np.argsort(-result["report"]["AD_score"].to_numpy())[:2]
+        self.assertEqual(sorted(top), list(ANOMALY_ROWS))
+        code = python_snippet(self.analysis, load_model(self.analysis))
+        compile(code, "snippet", "exec")
+        self.assertIn("from autoad import AutoAD, ScoreEnsemble", code)
+        self.assertIn("detector=ScoreEnsemble(contamination=0.05, random_state=0)", code)
+
     def test_duplicates_are_found_despite_different_ids(self):
         scoring = fit_analysis(self.analysis, self.frame, settings_with())
         self.assertEqual((scoring.summary["rows_duplicate"], scoring.summary["duplicate_groups"]), (2, 1))
@@ -161,6 +171,10 @@ class DetectorArgumentTests(TestCase):
     def test_iforest_is_reproducible(self):
         kwargs, _ = detector_arguments(settings_with(n_estimators=50), n_train=100)
         self.assertEqual(kwargs, {"contamination": 0.05, "n_estimators": 50, "random_state": 0})
+
+    def test_ensemble_is_reproducible_and_ignores_the_tree_count(self):
+        kwargs, notes = detector_arguments(settings_with(detector="ensemble", n_estimators=50), n_train=100)
+        self.assertEqual((kwargs, notes), ({"contamination": 0.05, "random_state": 0}, []))
 
 
 class PresentationTests(TemporaryMediaMixin, TestCase):

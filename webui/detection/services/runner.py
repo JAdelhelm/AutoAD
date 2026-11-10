@@ -36,6 +36,7 @@ from ..models import Analysis, Scoring
 logger = logging.getLogger(__name__)
 
 DETECTORS = {
+    "ensemble": {"label": "Ensemble (IForest, ECOD and KNN)", "module": "autoad", "class": "ScoreEnsemble"},
     "iforest": {"label": "Isolation Forest (IForest)", "module": "pyod.models.iforest", "class": "IForest"},
     "ecod": {"label": "ECOD", "module": "pyod.models.ecod", "class": "ECOD"},
     "knn": {"label": "k nearest neighbours (KNN)", "module": "pyod.models.knn", "class": "KNN"},
@@ -75,9 +76,9 @@ def detector_arguments(settings: dict, n_train: int) -> tuple[dict, list[str]]:
     name = settings["detector"]
     kwargs = {"contamination": settings["contamination"]}
     notes = []
-    if name == "iforest":
-        if settings.get("n_estimators"):
-            kwargs["n_estimators"] = settings["n_estimators"]
+    if name == "iforest" and settings.get("n_estimators"):
+        kwargs["n_estimators"] = settings["n_estimators"]
+    if name in ("iforest", "ensemble"):
         kwargs["random_state"] = 0
     if name in NEIGHBOUR_DEFAULTS:
         if n_train < 3:

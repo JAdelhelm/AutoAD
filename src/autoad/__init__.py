@@ -3,5 +3,6 @@
 __version__ = "0.2.0"
 
 from autoad.core import AutoAD  # noqa: E402
+from autoad.ensemble import ScoreEnsemble  # noqa: E402
 
-__all__ = ["AutoAD", "__version__"]
+__all__ = ["AutoAD", "ScoreEnsemble", "__version__"]
