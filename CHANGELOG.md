@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 - unreleased
+## 0.2.0 - 2026-11-10
 
 A rewrite that fixes wrong results and turns AutoAD into a scikit-learn estimator.
 The API is not compatible with 1.0.0.
@@ -45,8 +45,8 @@ The API is not compatible with 1.0.0.
   in `Missing_Columns`.
 - Features that are constant in the training data (for example `missing_count` without
   missing values, or the BinaryEncoder's bit for unknown categories) are removed before
-  the detector. They made PyOD's PCA return infinite scores on 17 of 19 benchmark
-  datasets.
+  the detector. They made PyOD's PCA return infinite scores on 17 of the 19 datasets of
+  a one-off evaluation (not part of this repository).
 - Importing AutoAD no longer disables all warnings, changes the global scikit-learn
   configuration or prints to stdout.
 - pandas 3 support (`fillna(method=)`, `infer_datetime_format`, new string dtype,
@@ -71,8 +71,8 @@ The API is not compatible with 1.0.0.
 - Tests for every fixed bug plus a quality test with injected anomalies.
 - `pyproject.toml` (distribution name `autoad-framework`) with minimum versions instead
   of a pinned `requirements.txt`; extras `dev` and `examples`.
-- GitHub Actions: ruff and pytest on Linux and Windows, Python 3.11 to 3.14, plus a run
-  with the oldest supported dependencies.
+- GitHub Actions: ruff and pytest on Linux and Windows, Python 3.11 to 3.14, a run with
+  the declared minimum versions of the dependencies, and a run of the example notebook.
 - The example notebook uses synthetic data and needs no Kaggle account.
 
 ### Removed

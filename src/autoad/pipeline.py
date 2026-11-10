@@ -25,7 +25,7 @@ SCALERS = {"robust": RobustScaler, "standard": StandardScaler, "minmax": MinMaxS
 
 def make_scaler(scaler):
     """Return a fresh scaler: "robust", "standard", "minmax", None or a transformer."""
-    if scaler is None or scaler in ("none", "passthrough"):
+    if scaler is None:
         return "passthrough"
     if isinstance(scaler, str):
         if scaler not in SCALERS:

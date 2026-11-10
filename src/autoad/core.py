@@ -107,6 +107,12 @@ class AutoAD(TransformerMixin, BaseEstimator):
         Fitted clone of ``detector``.
     feature_names_in_ : ndarray of str
         Columns seen during ``fit``.
+    excluded_columns_ : list of str
+        Columns ignored because of ``exclude_columns``.
+    feature_names_out_ : ndarray of str
+        Names of the features returned by ``transform``, see ``get_feature_names_out``.
+    type_inference_ : TypeInferenceTransformer
+        Fitted transformer that casts every column to its learned type.
     """
 
     def __init__(

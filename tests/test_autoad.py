@@ -278,6 +278,13 @@ def test_unknown_scaler_raises(x_train):
         AutoAD(scaler="fancy").fit(x_train)
 
 
+@pytest.mark.parametrize("alias", ["none", "passthrough"])
+def test_no_scaling_is_spelled_none_only(x_train, alias):
+    # Like missing_indicator, "no scaling" is None; string aliases are not accepted.
+    with pytest.raises(ValueError, match="Unknown scaler"):
+        AutoAD(scaler=alias).fit(x_train)
+
+
 def test_missing_indicator_modes(x_train, x_test):
     train = x_train.copy()
     train.loc[[1, 5], "Age"] = np.nan  # an indicator that is constant in training is dropped

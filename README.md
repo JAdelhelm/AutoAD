@@ -1,18 +1,81 @@
-# AutoAD - automatic preprocessing for anomaly detection on tabular data
+<a href="docs/img/webui_results.png"><img src="docs/img/webui_results.png" align="right" width="44%" alt="Results page of the AutoAD web interface: stat tiles, anomaly score per row, score distribution and map of rows"></a>
 
-AutoAD turns a mixed-type pandas DataFrame into a numeric feature matrix and, if you
-want, fits a [PyOD](https://github.com/yzhao062/pyod) detector on it. On the way it
+# AutoAD
 
-- learns a type for every column (numeric, bool, datetime, categorical) and applies
-  exactly the same casting to new data,
-- adds robust univariate outlier counts per row (Tukey's fences and the modified
-  z-score) as features,
-- marks missing values instead of silently imputing them away,
-- drops constant and ID-like columns, and scales everything before the detector.
+**Anomaly detection for mixed-type tables, without the preprocessing work.**
 
-Every decision is stored on the fitted object, so you can check what happened.
+[![CI](https://github.com/JAdelhelm/AutoAD/actions/workflows/ci.yml/badge.svg)](https://github.com/JAdelhelm/AutoAD/actions/workflows/ci.yml)
+![Python 3.11 to 3.14](https://img.shields.io/badge/python-3.11%20--%203.14-blue)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+![Status: alpha](https://img.shields.io/badge/status-alpha-orange)
 
-> **Status:** 0.x - the API may still change. See the [changelog](CHANGELOG.md).
+AutoAD turns a pandas DataFrame with numbers, text, booleans and dates into a numeric
+feature matrix and fits any [PyOD](https://github.com/yzhao062/pyod) detector on it.
+The report then tells you which rows are unusual, and why.
+
+- **One call instead of a pipeline.** Types are learned per column, and new data is
+  cast, encoded and scaled exactly like the training data.
+- **Scores you can explain.** Every row lists its extreme values (Tukey's fences and the
+  modified z-score), its missing values and its categories that are new.
+- **Nothing hidden.** Dropped columns, learned types and removed features are stored on
+  the fitted object.
+- **A scikit-learn estimator.** `fit`, `transform`, `predict`, `get_params` and `clone`
+  work as usual.
+- **Also in the browser.** A local [web interface](#web-interface) covers the same steps
+  without Python.
+
+<br clear="both">
+
+[Quick start](#quick-start) · [Installation](#installation) · [Web interface](#web-interface) · [Output](#output) · [Parameters](#parameters) · [How it works](#how-it-works) · [Limitations](#limitations)
+
+> **Status:** 0.x, the API may still change. See the [changelog](CHANGELOG.md).
+
+## Quick start
+
+The bundled example files contain the same ten employees twice. In `X_test.csv` two
+salaries are wrong and three ages are missing.
+
+```python
+import pandas as pd
+from pyod.models.lof import LOF
+
+from autoad import AutoAD
+
+X_train = pd.read_csv("examples/X_train.csv")  # known-good data
+X_test = pd.read_csv("examples/X_test.csv")    # new data to check
+
+ad = AutoAD(detector=LOF(n_neighbors=3)).fit(X_train)
+
+report = ad.report(X_test)                     # X_test plus anomaly information
+columns = ["Name", "Salary", "AD_score", "MAD_Columns", "Missing_Columns", "Unseen_Columns"]
+top = report.sort_values("AD_score", ascending=False)[columns].head(4)
+print(top.round(2).to_string(index=False))
+```
+
+```text
+ Name     Salary  AD_score MAD_Columns Missing_Columns Unseen_Columns
+Diana 8000000.00    129.16      Salary             Age
+ Zara  900000.00     13.46      Salary                           Name
+ Hank   47000.75      1.26
+Grace   65000.25      1.01                         Age
+```
+
+Both wrong salaries end up on top, and the `*_Columns` say what is unusual about a row.
+The other methods:
+
+```python
+scores = ad.decision_function(X_test)  # higher = more anomalous
+labels = ad.predict(X_test)            # 0/1, based on the detector's contamination
+features = ad.transform(X_test)        # the scaled matrix the detector sees
+findings = ad.findings(X_test)         # the findings per cell, as boolean DataFrames
+duplicates = ad.duplicates(X_test)     # rows that duplicate another row
+```
+
+Any PyOD detector works. With only ten training rows the example uses LOF with 3
+neighbours; on real data `IForest` is a good start.
+[`examples/main.py`](examples/main.py) is this example as a script, and
+[`examples/examples.ipynb`](examples/examples.ipynb) walks through twelve typical tasks
+on synthetic data (`pip install -e ".[examples]"`).
 
 ## Installation
 
@@ -29,52 +92,30 @@ pip install -e ".[dev]"
 pytest
 ```
 
-The distribution name is `autoad-framework` (the name `autoad` on PyPI belongs to an
-unrelated project); the import name is `autoad`. The unrelated package uses the same
-import name, so do not install both in one environment. Python 3.11 or newer is required.
-
-## Quick start
-
-```python
-import pandas as pd
-from pyod.models.iforest import IForest
-
-from autoad import AutoAD
-
-X_train = pd.read_csv("examples/X_train.csv")
-X_test = pd.read_csv("examples/X_test.csv")
-
-ad = AutoAD(detector=IForest(random_state=0)).fit(X_train)
-
-report = ad.report(X_test)            # X_test plus anomaly information
-report.sort_values("AD_score", ascending=False).head()
-
-scores = ad.decision_function(X_test)  # higher = more anomalous
-labels = ad.predict(X_test)            # 0/1, based on the detector's contamination
-features = ad.transform(X_test)        # the scaled matrix the detector sees
-```
-
-More examples, with synthetic data, are in [`examples/examples.ipynb`](examples/examples.ipynb)
-(`pip install -e ".[examples]"`). [`examples/main.py`](examples/main.py) is a minimal script.
+Python 3.11 or newer is required. The distribution name is `autoad-framework` and the
+import name is `autoad`. The name `autoad` on PyPI belongs to an unrelated project that
+uses the same import name, so do not install both in one environment.
 
 ## Web interface
 
 [`webui/`](webui/README.md) is a small Django app for working in the browser instead of
-in Python. You upload a CSV, Excel, JSON or Parquet file, check how AutoAD reads its
-columns and run a detector. The result page shows the anomaly score per row, the score
-distribution, a map of the rows, the findings per column and groups of duplicate rows.
-Below that is the table of rows with the unusual cells marked. A page per row explains
-the score, and the analysis can check new files against the same model.
+in Python (screenshot at the top):
 
-![Results page of the web interface: stat tiles, anomaly score per row, score distribution and map of rows](docs/img/webui_results.png)
+1. Upload a CSV, Excel, JSON or Parquet file.
+2. Check how AutoAD reads the columns and choose a detector.
+3. Explore the result: the anomaly score per row, the score distribution, a map of the
+   rows, the findings per column, groups of duplicate rows and the table of rows with
+   the unusual cells marked. A page per row explains its score.
+4. Check new files against the same model.
 
 ```bash
 pip install -e . -r webui/requirements.txt
 python webui/manage.py migrate
-python webui/manage.py runserver   # then open http://127.0.0.1:8080
+python webui/manage.py runserver   # then open http://127.0.0.1:8090
 ```
 
-It is a local tool without user accounts. Do not run it on a public server.
+It is a local tool without user accounts. Do not run it on a public server. Parquet
+files also need `pyarrow`.
 
 ## Output
 
@@ -148,6 +189,8 @@ no missing values, or `MAD_Total` if no training value is flagged. Feature names
 | `dropped_columns_` | dropped columns and the reason (`"constant"` or `"id"`) |
 | `dropped_features_` | features removed because they are constant in the training data |
 | `column_groups_` | columns per feature group |
+| `known_categories_` | categories seen during `fit`, per categorical column |
+| `feature_names_in_` | columns seen during `fit` |
 | `feature_importances` | importance per feature, for detectors with `feature_importances_` such as `IForest` |
 | `preprocessor_`, `detector_` | the fitted scikit-learn pipeline and detector |
 
@@ -191,10 +234,10 @@ flowchart LR
 ```
 
 **Types** are learned once during `fit`. Text columns become numeric if all values are
-numbers (`"2001"` stays a number), datetime only if almost all values contain digits and
-parse as dates, otherwise categorical. Placeholders such as `""`, `"nan"` or `"None"`
-count as missing. During `transform` every column is cast to its learned type; values
-that do not fit become missing.
+numbers (`"2001"` stays a number), datetime only if at least 95 % of the values contain
+digits and parse as dates, otherwise categorical. Placeholders such as `""`, `"nan"` or
+`"None"` count as missing. During `transform` every column is cast to its learned type;
+values that do not fit become missing.
 
 **Tukey and MAD** are computed per column on the imputed training data. If the IQR of a
 column is 0, Tukey falls back to the 5 %/95 % quantiles (and skips the column if those
@@ -211,17 +254,19 @@ and performed comparably in these studies:
   pp. 146-155, p. 151.
 
 The original design diagram is in [`docs/img/decision_rules.png`](docs/img/decision_rules.png).
+It shows the first concept; ordinal encoding and pattern recognition from that diagram
+are not part of the current version.
 
 ## Limitations
 
 - Tukey and MAD look at one numeric column at a time. Unusual combinations of normal
   values are left to the detector.
-- The detector decides the quality of `AD_score`. There is no built-in benchmark yet,
+- The detector decides the quality of `AD_score`. The repository contains no benchmark,
   so compare detectors on your own data.
 - Binary codes are not ordinal: the distance between two categories says nothing about
   their similarity.
-- Columns are treated as independent rows of a table. There is no sequence or time
-  series model; dates are encoded as calendar parts.
+- Rows are treated as independent. There is no sequence or time series model; dates are
+  encoded as calendar parts.
 - A time of day is only encoded if the column contained one during `fit`. Columns and
   features that are constant during `fit` are dropped, even if they vary later.
 - ID detection is a heuristic. Check `dropped_columns_`, or set `drop_id_columns=False`.

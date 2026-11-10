@@ -24,11 +24,12 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "numpy>=1.24",
-    "pandas>=2.2",
-    "scikit-learn>=1.5",
-    "pyod>=2.0",
-    "category-encoders>=2.6",
+    # Keep in sync with the "test-oldest" job in .github/workflows/ci.yml.
+    "numpy>=2.0.2",
+    "pandas>=2.2.3",
+    "scikit-learn>=1.5.2",
+    "pyod>=2.0.2",
+    "category-encoders>=2.6.4",
 ]
 
 [project.optional-dependencies]
